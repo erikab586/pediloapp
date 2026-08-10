@@ -20,20 +20,21 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Flutter version
-        run: flutter --version
-
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Flutter doctor
-        run: flutter doctor -v
-
-      - name: Build iOS
+      - name: Build iOS Release (No Codesign)
         run: flutter build ios --release --no-codesign
 
-      - name: Upload iOS build
+      - name: Create Unsigned IPA
+        run: |
+          mkdir -p build/ios/iphoneos/Payload
+          cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
+          cd build/ios/iphoneos
+          zip -r app-release.ipa Payload
+
+      - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ios-build
-          path: build/ios/iphoneos/Runner.app
+          name: ios-ipa-release
+          path: build/ios/iphoneos/app-release.ipa
