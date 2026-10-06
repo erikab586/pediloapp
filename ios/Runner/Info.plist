@@ -66,5 +66,14 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- Permisos colocados correctamente en la raíz del <dict> -->
+	<key>NSCameraUsageDescription</key>
+	<string>Necesitamos acceso a la cámara para tomar fotos de los pedidos o escanear códigos QR.</string>
+
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Necesitamos acceso a la galería para que puedas adjuntar imágenes a tus pedidos.</string>
+
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Necesitamos permiso para guardar comprobantes de pedidos en tu galería.</string>
 </dict>
 </plist>
