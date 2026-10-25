@@ -1,0 +1,22 @@
+workflows:
+  ios-release-workflow:
+    name: iOS Release Workflow
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      groups:
+        - app_store_credentials # El nombre del grupo o integración que hiciste en Codemagic para tu API Key de Apple
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          flutter pub get
+      - name: Build Flutter IPA in Release mode
+        script: |
+          flutter build ipa --release
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        # beta_groups: ['Grupo de testers'] # Opcional si tienes grupos creados en TestFlight
