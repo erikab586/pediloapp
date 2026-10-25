@@ -25,5 +25,5 @@ Salida: `build/app/outputs/flutter-apk/app-release.apk`
 
 ## API
 
-Base: `http://187.127.44.110:3000/api` (ver `lib/core/config/api_config.dart`)
+Base: `https://api.pedilo.tech/api` (ver `lib/core/config/api_config.dart`)
 # pediloapp

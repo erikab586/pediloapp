@@ -7,6 +7,11 @@ abstract final class CatalogMockData {
     CategoriaModel(id: 2, nombreCategoria: 'Cafeterías'),
     CategoriaModel(id: 3, nombreCategoria: 'Supermercados'),
     CategoriaModel(id: 4, nombreCategoria: 'Farmacias'),
+    CategoriaModel(id: 5, nombreCategoria: 'Pizzas'),
+    CategoriaModel(id: 6, nombreCategoria: 'Minutas'),
+    CategoriaModel(id: 7, nombreCategoria: 'Helados'),
+    CategoriaModel(id: 8, nombreCategoria: 'Mercados'),
+    CategoriaModel(id: 9, nombreCategoria: 'Express'),
   ];
 
   static const fallbackComercios = [

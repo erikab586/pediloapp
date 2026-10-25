@@ -6,7 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/pedilo_logo.dart';
 import '../../auth/domain/user_role.dart';
 
-/// Selector de app según rol: Cliente, Comerciante o Administrador.
+/// Pantalla de entrada: elegir perfil para iniciar sesión.
 class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key});
 
@@ -33,19 +33,21 @@ class RoleSelectionScreen extends StatelessWidget {
                 const PediloLogo(height: 64, textColor: AppColors.white),
                 const SizedBox(height: 16),
                 Text(
-                  'Marketplace de pedidos — Prototipos UI/UX',
+                  'Lo que querés, cuando querés',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    color: AppColors.gray400,
-                    height: 1.5,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.white,
+                    height: 1.4,
                   ),
                 ),
+                const SizedBox(height: 8),
                 Text(
-                  'Seleccioná la app para explorar',
+                  'Pedí de todos los rubros, en un solo lugar',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
-                    fontSize: 15,
+                    fontSize: 14,
                     color: AppColors.gray400,
                     height: 1.5,
                   ),
@@ -76,22 +78,13 @@ class RoleSelectionScreen extends StatelessWidget {
                   onTap: () =>
                       context.push('/login/${UserRole.administrador.name}'),
                 ),
-                const SizedBox(height: 60),
+                const SizedBox(height: 48),
                 Text(
-                  'Prototipo Flutter · Poppins · #FFC83D · #0D1B2A',
+                  'Rápido · Fácil · Seguro',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
                     fontSize: 12,
-                    color: AppColors.white.withValues(alpha: 0.4),
-                    height: 1.5,
-                  ),
-                ),
-                Text(
-                  'Optimizado para móvil (390×844)',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: AppColors.white.withValues(alpha: 0.4),
+                    color: AppColors.white.withValues(alpha: 0.45),
                   ),
                 ),
                 const SizedBox(height: 20),

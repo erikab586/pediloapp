@@ -1,0 +1,4 @@
+storePassword=Pedilo-1matias
+keyPassword=Pedilo-1matias
+keyAlias=upload
+storeFile=../upload-keystore.jks

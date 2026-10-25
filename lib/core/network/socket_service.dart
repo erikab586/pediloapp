@@ -8,13 +8,6 @@ import '../storage/token_storage.dart';
 
 /// Conecta al namespace `/pedidos` de Socket.IO y expone los eventos
 /// como [Stream]s para que las pantallas reaccionen en tiempo real.
-///
-/// Eventos soportados (ver `pedidos.gateway.ts` del backend):
-/// - `nuevo_pedido`        → llega al room `comercio:{id}`
-/// - `estado_pedido`       → llega al room `user:{userId}`
-/// - `pedido_cancelado`    → llega al room `comercio:{id}`
-/// - `comercio_estado`     → broadcast a todos
-/// - `promo_nueva`         → broadcast a todos
 class PedidosSocket {
   PedidosSocket._();
 
@@ -28,6 +21,9 @@ class PedidosSocket {
   final _pedidoCancelado = StreamController<Map<String, dynamic>>.broadcast();
   final _comercioEstado = StreamController<Map<String, dynamic>>.broadcast();
   final _promoNueva = StreamController<Map<String, dynamic>>.broadcast();
+  final _chatMensaje = StreamController<Map<String, dynamic>>.broadcast();
+  final _notificacionNueva =
+      StreamController<Map<String, dynamic>>.broadcast();
   final _connection = StreamController<SocketConnection>.broadcast();
 
   Stream<Map<String, dynamic>> get onNuevoPedido => _nuevoPedido.stream;
@@ -36,12 +32,13 @@ class PedidosSocket {
       _pedidoCancelado.stream;
   Stream<Map<String, dynamic>> get onComercioEstado => _comercioEstado.stream;
   Stream<Map<String, dynamic>> get onPromoNueva => _promoNueva.stream;
+  Stream<Map<String, dynamic>> get onChatMensaje => _chatMensaje.stream;
+  Stream<Map<String, dynamic>> get onNotificacionNueva =>
+      _notificacionNueva.stream;
   Stream<SocketConnection> get onConnectionChange => _connection.stream;
 
   bool get isConnected => _socket?.connected ?? false;
 
-  /// Conecta al namespace de pedidos. Si ya está conectado, primero
-  /// desconecta para refrescar el token y los query params.
   Future<void> connect({
     required int userId,
     required String role,
@@ -70,21 +67,15 @@ class PedidosSocket {
 
     _socket!
       ..onConnect((_) {
-        if (kDebugMode) {
-          debugPrint('[socket] conectado');
-        }
+        if (kDebugMode) debugPrint('[socket] conectado');
         _connection.add(SocketConnection.connected);
       })
       ..onDisconnect((_) {
-        if (kDebugMode) {
-          debugPrint('[socket] desconectado');
-        }
+        if (kDebugMode) debugPrint('[socket] desconectado');
         _connection.add(SocketConnection.disconnected);
       })
       ..onConnectError((err) {
-        if (kDebugMode) {
-          debugPrint('[socket] error de conexión: $err');
-        }
+        if (kDebugMode) debugPrint('[socket] error de conexión: $err');
         _connection.add(SocketConnection.disconnected);
       })
       ..on('nuevo_pedido', (data) {
@@ -111,9 +102,27 @@ class PedidosSocket {
         if (data is Map) {
           _promoNueva.add(Map<String, dynamic>.from(data));
         }
+      })
+      ..on('chat_mensaje', (data) {
+        if (data is Map) {
+          _chatMensaje.add(Map<String, dynamic>.from(data));
+        }
+      })
+      ..on('notificacion_nueva', (data) {
+        if (data is Map) {
+          _notificacionNueva.add(Map<String, dynamic>.from(data));
+        }
       });
 
     _socket!.connect();
+  }
+
+  void joinConversacion(int conversacionId) {
+    _socket?.emit('join_conversacion', {'conversacionId': conversacionId});
+  }
+
+  void leaveConversacion(int conversacionId) {
+    _socket?.emit('leave_conversacion', {'conversacionId': conversacionId});
   }
 
   Future<void> disconnect() async {
@@ -128,6 +137,8 @@ class PedidosSocket {
     await _pedidoCancelado.close();
     await _comercioEstado.close();
     await _promoNueva.close();
+    await _chatMensaje.close();
+    await _notificacionNueva.close();
     await _connection.close();
   }
 }

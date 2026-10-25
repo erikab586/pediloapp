@@ -5,13 +5,15 @@ import 'package:provider/provider.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/open_backoffice.dart';
 import '../domain/user_role.dart';
 import 'auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, required this.role});
+  const LoginScreen({super.key, this.role});
 
-  final UserRole role;
+  /// Si es admin, valida el rol. Si es null, login único (cliente/comerciante).
+  final UserRole? role;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -22,6 +24,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+
+  bool get _isAdminGate => widget.role == UserRole.administrador;
 
   @override
   void dispose() {
@@ -39,10 +43,17 @@ class _LoginScreenState extends State<LoginScreen> {
       await auth.login(
         email: _emailController.text,
         password: _passwordController.text,
-        expectedRole: widget.role,
+        expectedRole: _isAdminGate ? UserRole.administrador : null,
       );
       if (!mounted) return;
-      context.go(auth.homeRouteFor(widget.role));
+      await _showWelcomeDialog();
+      if (!mounted) return;
+      if (auth.user?.userRole == UserRole.administrador) {
+        await showAdminWebOnlyDialog(context);
+      }
+      auth.completeLoginNavigation();
+      if (!mounted) return;
+      context.go(auth.homeRoute ?? '/cliente/home');
     } on ApiException catch (e) {
       if (!mounted) return;
       _showError(e.message);
@@ -56,6 +67,42 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _showWelcomeDialog() {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Bienvenidos a Pedilo',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.poppins(
+            color: AppColors.navy,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.yellow,
+              foregroundColor: AppColors.navy,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            child: Text(
+              'Continuar',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
@@ -65,23 +112,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final (icon, iconBg, iconColor) = switch (widget.role) {
-      UserRole.cliente => (
-          Icons.shopping_cart_outlined,
-          AppColors.yellow,
-          AppColors.navy,
-        ),
-      UserRole.comerciante => (
-          Icons.storefront_outlined,
-          AppColors.green,
-          AppColors.white,
-        ),
-      UserRole.administrador => (
-          Icons.settings_outlined,
-          AppColors.blue,
-          AppColors.white,
-        ),
-    };
 
     return Scaffold(
       appBar: AppBar(
@@ -89,7 +119,9 @@ class _LoginScreenState extends State<LoginScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
-        title: Text(widget.role.loginTitle),
+        title: Text(
+          _isAdminGate ? 'Administración' : 'Iniciar sesión',
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -104,15 +136,23 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: 72,
                   height: 72,
                   decoration: BoxDecoration(
-                    color: iconBg,
+                    color: _isAdminGate ? AppColors.blue : AppColors.yellow,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Icon(icon, color: iconColor, size: 36),
+                  child: Icon(
+                    _isAdminGate
+                        ? Icons.settings_outlined
+                        : Icons.shopping_bag_outlined,
+                    color: _isAdminGate ? AppColors.white : AppColors.navy,
+                    size: 36,
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
               Text(
-                widget.role.title,
+                _isAdminGate
+                    ? 'Panel del administrador'
+                    : 'Bienvenido a pedilo',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
                   fontSize: 22,
@@ -122,7 +162,9 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                widget.role.description,
+                _isAdminGate
+                    ? 'Acceso exclusivo para administración'
+                    : 'Entrá con tu cuenta para pedir o gestionar tu comercio',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
                   fontSize: 14,
@@ -189,19 +231,20 @@ class _LoginScreenState extends State<LoginScreen> {
                       )
                     : const Text('Iniciar sesión'),
               ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: auth.isLoading
-                    ? null
-                    : () => context.push('/register/${widget.role.name}'),
-                child: Text(
-                  '¿No tenés cuenta? Registrate',
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.blue,
+              if (!_isAdminGate) ...[
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed:
+                      auth.isLoading ? null : () => context.push('/register'),
+                  child: Text(
+                    '¿No tenés cuenta? Registrate',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.blue,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ),

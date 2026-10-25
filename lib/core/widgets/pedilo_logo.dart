@@ -18,7 +18,7 @@ class PediloLogo extends StatelessWidget {
   final Color textColor;
   final bool useAsset;
 
-  static const _assetPath = 'assets/images/pedilo.jpeg';
+  static const _assetPath = 'assets/images/pedilo.jpg';
 
   @override
   Widget build(BuildContext context) {

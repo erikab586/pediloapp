@@ -22,11 +22,19 @@ class ComercioFormRepository {
   Future<ComercioModel> createComercio({
     required int categoriaId,
     required String name,
+    String? solicitanteNombre,
+    String? solicitanteTelefono,
+    int? comercianteId,
     String? telefono,
     String? direccion,
     String? descripcion,
     List<String>? metodosPago,
     List<String>? tiposEntrega,
+    Map<String, dynamic>? horarios,
+    bool? horarioAutomatico,
+    int? tiempoEntregaMin,
+    int? tiempoEntregaMax,
+    double? montoMinimo,
     Uint8List? logoBytes,
     Uint8List? portadaBytes,
   }) async {
@@ -35,11 +43,19 @@ class ComercioFormRepository {
       fields: _fields(
         categoriaId: categoriaId,
         name: name,
+        solicitanteNombre: solicitanteNombre,
+        solicitanteTelefono: solicitanteTelefono,
+        comercianteId: comercianteId,
         telefono: telefono,
         direccion: direccion,
         descripcion: descripcion,
         metodosPago: metodosPago,
         tiposEntrega: tiposEntrega,
+        horarios: horarios,
+        horarioAutomatico: horarioAutomatico,
+        tiempoEntregaMin: tiempoEntregaMin,
+        tiempoEntregaMax: tiempoEntregaMax,
+        montoMinimo: montoMinimo,
       ),
       files: _files(logoBytes: logoBytes, portadaBytes: portadaBytes),
       authenticated: true,
@@ -55,8 +71,13 @@ class ComercioFormRepository {
     String? direccion,
     String? descripcion,
     bool? estaAbierto,
+    bool? horarioAutomatico,
     List<String>? metodosPago,
     List<String>? tiposEntrega,
+    Map<String, dynamic>? horarios,
+    int? tiempoEntregaMin,
+    int? tiempoEntregaMax,
+    double? montoMinimo,
     Uint8List? logoBytes,
     Uint8List? portadaBytes,
   }) async {
@@ -67,8 +88,13 @@ class ComercioFormRepository {
       direccion: direccion,
       descripcion: descripcion,
       estaAbierto: estaAbierto,
+      horarioAutomatico: horarioAutomatico,
       metodosPago: metodosPago,
       tiposEntrega: tiposEntrega,
+      horarios: horarios,
+      tiempoEntregaMin: tiempoEntregaMin,
+      tiempoEntregaMax: tiempoEntregaMax,
+      montoMinimo: montoMinimo,
     );
 
     final files = _files(logoBytes: logoBytes, portadaBytes: portadaBytes);
@@ -81,8 +107,14 @@ class ComercioFormRepository {
             if (direccion != null) 'direccion': direccion,
             if (descripcion != null) 'descripcion': descripcion,
             if (estaAbierto != null) 'estaAbierto': estaAbierto,
+            if (horarioAutomatico != null)
+              'horarioAutomatico': horarioAutomatico,
             if (metodosPago != null) 'metodosPago': metodosPago,
             if (tiposEntrega != null) 'tiposEntrega': tiposEntrega,
+            if (horarios != null) 'horarios': horarios,
+            if (tiempoEntregaMin != null) 'tiempoEntregaMin': tiempoEntregaMin,
+            if (tiempoEntregaMax != null) 'tiempoEntregaMax': tiempoEntregaMax,
+            if (montoMinimo != null) 'montoMinimo': montoMinimo,
           })
         : await _api.putMultipart(
             '/comercios/$id',
@@ -96,26 +128,44 @@ class ComercioFormRepository {
 
   Map<String, String> _fields({
     int? categoriaId,
+    int? comercianteId,
     String? name,
+    String? solicitanteNombre,
+    String? solicitanteTelefono,
     String? telefono,
     String? direccion,
     String? descripcion,
     bool? estaAbierto,
+    bool? horarioAutomatico,
     List<String>? metodosPago,
     List<String>? tiposEntrega,
+    Map<String, dynamic>? horarios,
+    int? tiempoEntregaMin,
+    int? tiempoEntregaMax,
+    double? montoMinimo,
   }) {
     return {
       if (categoriaId != null) 'categoriaId': '$categoriaId',
+      if (comercianteId != null) 'comercianteId': '$comercianteId',
       if (name != null) 'name': name,
+      if (solicitanteNombre != null) 'solicitanteNombre': solicitanteNombre,
+      if (solicitanteTelefono != null)
+        'solicitanteTelefono': solicitanteTelefono,
       if (telefono != null && telefono.isNotEmpty) 'telefono': telefono,
       if (direccion != null && direccion.isNotEmpty) 'direccion': direccion,
       if (descripcion != null && descripcion.isNotEmpty)
         'descripcion': descripcion,
       if (estaAbierto != null) 'estaAbierto': estaAbierto.toString(),
+      if (horarioAutomatico != null)
+        'horarioAutomatico': horarioAutomatico.toString(),
       if (metodosPago != null && metodosPago.isNotEmpty)
         'metodosPago': jsonEncode(metodosPago),
       if (tiposEntrega != null && tiposEntrega.isNotEmpty)
         'tiposEntrega': jsonEncode(tiposEntrega),
+      if (horarios != null) 'horarios': jsonEncode(horarios),
+      if (tiempoEntregaMin != null) 'tiempoEntregaMin': '$tiempoEntregaMin',
+      if (tiempoEntregaMax != null) 'tiempoEntregaMax': '$tiempoEntregaMax',
+      if (montoMinimo != null) 'montoMinimo': '$montoMinimo',
     };
   }
 

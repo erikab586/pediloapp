@@ -19,6 +19,10 @@ class ApiClient {
   /// Evita disparar [onUnauthorized] durante restore/refresh de sesión.
   bool suppressUnauthorized = false;
 
+  /// Renueva el access token con la sesión persistida.
+  Future<bool> Function()? onAccessTokenExpired;
+  Future<bool>? _refreshInProgress;
+
   String? get accessToken => _accessToken;
 
   void setAccessToken(String? token) => _accessToken = token;
@@ -31,9 +35,9 @@ class ApiClient {
     final uri = Uri.parse('${ApiConfig.baseUrl}$path').replace(
       queryParameters: queryParameters,
     );
-    final response = await _client.get(
-      uri,
-      headers: _headers(authenticated: authenticated),
+    final response = await _sendWithRefresh(
+      () => _client.get(uri, headers: _headers(authenticated: authenticated)),
+      authenticated: authenticated,
     );
     return _handleMapResponse(response);
   }
@@ -43,10 +47,13 @@ class ApiClient {
     Map<String, dynamic>? body,
     bool authenticated = false,
   }) async {
-    final response = await _client.post(
-      Uri.parse('${ApiConfig.baseUrl}$path'),
-      headers: _headers(authenticated: authenticated),
-      body: body == null ? null : jsonEncode(body),
+    final response = await _sendWithRefresh(
+      () => _client.post(
+        Uri.parse('${ApiConfig.baseUrl}$path'),
+        headers: _headers(authenticated: authenticated),
+        body: body == null ? null : jsonEncode(body),
+      ),
+      authenticated: authenticated,
     );
     return _handleMapResponse(response);
   }
@@ -56,10 +63,13 @@ class ApiClient {
     Map<String, dynamic>? body,
     bool authenticated = false,
   }) async {
-    final response = await _client.put(
-      Uri.parse('${ApiConfig.baseUrl}$path'),
-      headers: _headers(authenticated: authenticated),
-      body: body == null ? null : jsonEncode(body),
+    final response = await _sendWithRefresh(
+      () => _client.put(
+        Uri.parse('${ApiConfig.baseUrl}$path'),
+        headers: _headers(authenticated: authenticated),
+        body: body == null ? null : jsonEncode(body),
+      ),
+      authenticated: authenticated,
     );
     return _handleMapResponse(response);
   }
@@ -69,10 +79,13 @@ class ApiClient {
     Map<String, dynamic>? body,
     bool authenticated = false,
   }) async {
-    final response = await _client.patch(
-      Uri.parse('${ApiConfig.baseUrl}$path'),
-      headers: _headers(authenticated: authenticated),
-      body: body == null ? null : jsonEncode(body),
+    final response = await _sendWithRefresh(
+      () => _client.patch(
+        Uri.parse('${ApiConfig.baseUrl}$path'),
+        headers: _headers(authenticated: authenticated),
+        body: body == null ? null : jsonEncode(body),
+      ),
+      authenticated: authenticated,
     );
     return _handleMapResponse(response);
   }
@@ -81,9 +94,12 @@ class ApiClient {
     String path, {
     bool authenticated = false,
   }) async {
-    final response = await _client.delete(
-      Uri.parse('${ApiConfig.baseUrl}$path'),
-      headers: _headers(authenticated: authenticated),
+    final response = await _sendWithRefresh(
+      () => _client.delete(
+        Uri.parse('${ApiConfig.baseUrl}$path'),
+        headers: _headers(authenticated: authenticated),
+      ),
+      authenticated: authenticated,
     );
     return _handleMapResponse(response);
   }
@@ -116,9 +132,9 @@ class ApiClient {
     final uri = Uri.parse('${ApiConfig.baseUrl}$path').replace(
       queryParameters: queryParameters,
     );
-    final response = await _client.get(
-      uri,
-      headers: _headers(authenticated: authenticated),
+    final response = await _sendWithRefresh(
+      () => _client.get(uri, headers: _headers(authenticated: authenticated)),
+      authenticated: authenticated,
     );
     return _handleListResponse(response);
   }
@@ -130,31 +146,58 @@ class ApiClient {
     Map<String, MultipartFileData>? files,
     required bool authenticated,
   }) async {
-    final request = http.MultipartRequest(
-      method,
-      Uri.parse('${ApiConfig.baseUrl}$path'),
-    );
-
-    if (authenticated && _accessToken != null) {
-      request.headers['Authorization'] = 'Bearer $_accessToken';
-    }
-    request.headers['Accept'] = 'application/json';
-    request.fields.addAll(fields);
-
-    for (final entry in files?.entries ?? const <MapEntry<String, MultipartFileData>>[]) {
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          entry.key,
-          entry.value.bytes,
-          filename: entry.value.filename,
-          contentType: MediaType.parse(entry.value.mimeType),
-        ),
+    final response = await _sendWithRefresh(() async {
+      final request = http.MultipartRequest(
+        method,
+        Uri.parse('${ApiConfig.baseUrl}$path'),
       );
+
+      if (authenticated && _accessToken != null) {
+        request.headers['Authorization'] = 'Bearer $_accessToken';
+      }
+      request.headers['Accept'] = 'application/json';
+      request.fields.addAll(fields);
+
+      for (final entry
+          in files?.entries ?? const <MapEntry<String, MultipartFileData>>[]) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            entry.key,
+            entry.value.bytes,
+            filename: entry.value.filename,
+            contentType: MediaType.parse(entry.value.mimeType),
+          ),
+        );
+      }
+
+      final streamed = await _client.send(request);
+      return http.Response.fromStream(streamed);
+    }, authenticated: authenticated);
+    return _handleMapResponse(response);
+  }
+
+  Future<http.Response> _sendWithRefresh(
+    Future<http.Response> Function() send, {
+    required bool authenticated,
+  }) async {
+    var response = await send();
+    if (!authenticated ||
+        response.statusCode != 401 ||
+        onAccessTokenExpired == null) {
+      return response;
     }
 
-    final streamed = await _client.send(request);
-    final response = await http.Response.fromStream(streamed);
-    return _handleMapResponse(response);
+    final refreshed = await (_refreshInProgress ??= _refreshAccessToken());
+    if (refreshed) response = await send();
+    return response;
+  }
+
+  Future<bool> _refreshAccessToken() async {
+    try {
+      return await onAccessTokenExpired?.call() ?? false;
+    } finally {
+      _refreshInProgress = null;
+    }
   }
 
   Map<String, String> _headers({required bool authenticated}) {
@@ -184,8 +227,8 @@ class ApiClient {
 
     _notifyUnauthorizedIfNeeded(response.statusCode);
 
-    final message = _extractMessage(body) ??
-        'Error del servidor (${response.statusCode})';
+    final message =
+        _extractMessage(body) ?? 'Error del servidor (${response.statusCode})';
     throw ApiException(message, statusCode: response.statusCode);
   }
 
@@ -210,8 +253,8 @@ class ApiClient {
 
     final body =
         decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
-    final message = _extractMessage(body) ??
-        'Error del servidor (${response.statusCode})';
+    final message =
+        _extractMessage(body) ?? 'Error del servidor (${response.statusCode})';
     throw ApiException(message, statusCode: response.statusCode);
   }
 

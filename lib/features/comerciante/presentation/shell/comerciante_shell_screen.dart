@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/network/socket_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/notification_bell.dart';
 import '../../../../core/widgets/panel/panel_widgets.dart';
 import '../../../auth/presentation/auth_provider.dart';
 import '../../../cliente/data/models/catalog_models.dart';
@@ -185,6 +186,12 @@ class _ComercianteShellScreenState extends State<ComercianteShellScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudieron cargar tus comercios.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -224,9 +231,8 @@ class _ComercianteShellScreenState extends State<ComercianteShellScreen> {
       if (!mounted) return;
       setState(() {
         _comercio = updated;
-        _comercios = _comercios
-            .map((c) => c.id == updated.id ? updated : c)
-            .toList();
+        _comercios =
+            _comercios.map((c) => c.id == updated.id ? updated : c).toList();
       });
     } catch (e) {
       if (!mounted) return;
@@ -251,7 +257,7 @@ class _ComercianteShellScreenState extends State<ComercianteShellScreen> {
     _maybeReconnectSocket();
   }
 
-  void _openCombos() {
+  void _openPromociones() {
     final c = _comercio;
     if (c == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -262,7 +268,7 @@ class _ComercianteShellScreenState extends State<ComercianteShellScreen> {
       );
       return;
     }
-    context.push('/comerciante/combos', extra: c);
+    context.push('/comerciante/promociones', extra: c);
   }
 
   @override
@@ -273,8 +279,9 @@ class _ComercianteShellScreenState extends State<ComercianteShellScreen> {
       );
     }
 
-    final pedidosBadge =
-        _pendingCount > 0 ? (_pendingCount > 9 ? '9+' : '$_pendingCount') : null;
+    final pedidosBadge = _pendingCount > 0
+        ? (_pendingCount > 9 ? '9+' : '$_pendingCount')
+        : null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -291,7 +298,6 @@ class _ComercianteShellScreenState extends State<ComercianteShellScreen> {
             onGoProductos: () => _goTab(2),
             onGoVentas: () => _goTab(3),
             onGoLocal: () => _goTab(4),
-            onOpenCombos: _openCombos,
           ),
           ComerciantePedidosTab(
             repository: _repository,
@@ -303,7 +309,6 @@ class _ComercianteShellScreenState extends State<ComercianteShellScreen> {
             repository: _repository,
             categoriaProductoRepository: _categoriaProductoRepository,
             comercio: _comercio,
-            onOpenCombos: _openCombos,
           ),
           ComercianteVentasTab(
             repository: _repository,
@@ -315,7 +320,7 @@ class _ComercianteShellScreenState extends State<ComercianteShellScreen> {
             categoriaProductoRepository: _categoriaProductoRepository,
             comercio: _comercio,
             comercios: _comercios,
-            onOpenCombos: _openCombos,
+            onOpenPromociones: _openPromociones,
             onComercioUpdated: _loadComercios,
             onLogout: () async {
               // Capturamos las refs antes del await para no usar
@@ -324,7 +329,7 @@ class _ComercianteShellScreenState extends State<ComercianteShellScreen> {
               final router = GoRouter.of(context);
               await PedidosSocket.instance.disconnect();
               await auth.logout();
-              router.go('/role-selection');
+              router.go('/welcome');
             },
           ),
         ],
@@ -339,11 +344,57 @@ class _ComercianteShellScreenState extends State<ComercianteShellScreen> {
             label: 'Pedidos',
             badge: pedidosBadge,
           ),
-          const PanelNavItem(icon: Icons.inventory_2_outlined, label: 'Productos'),
+          const PanelNavItem(
+              icon: Icons.inventory_2_outlined, label: 'Productos'),
           const PanelNavItem(icon: Icons.bar_chart_outlined, label: 'Ventas'),
           const PanelNavItem(icon: Icons.settings_outlined, label: 'Más'),
         ],
       ),
+      floatingActionButton: SafeArea(
+        child: NotificationBell(
+          onOpenNotification: (notification) {
+            final rawData = notification['data'];
+            final data = rawData is Map
+                ? Map<String, dynamic>.from(rawData)
+                : const <String, dynamic>{};
+            if (notification['tipo']?.toString() == 'chat_mensaje') {
+              final conversationId =
+                  int.tryParse(data['conversacionId']?.toString() ?? '');
+              if (conversationId != null) {
+                context.push(
+                  '/cliente/chat/$conversationId',
+                  extra: {
+                    'titulo': notification['titulo']?.toString() ?? 'Chat',
+                    'soyCliente': false,
+                  },
+                );
+              } else {
+                context.push('/cliente/chat?rol=comerciante');
+              }
+            } else if (int.tryParse(data['ordenId']?.toString() ?? '') !=
+                null) {
+              _goTab(1);
+            } else {
+              showDialog<void>(
+                context: context,
+                builder: (dialogContext) => AlertDialog(
+                  title: Text(
+                    notification['titulo']?.toString() ?? 'Notificación',
+                  ),
+                  content: Text(notification['mensaje']?.toString() ?? ''),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('Cerrar'),
+                    ),
+                  ],
+                ),
+              );
+            }
+          },
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
     );
   }
 }

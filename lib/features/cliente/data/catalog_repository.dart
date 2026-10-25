@@ -47,19 +47,41 @@ class CatalogRepository {
   }
 
   Future<PaginatedResponse<ProductoModel>> getProductos({
-    required int comercioId,
+    int? comercioId,
+    String? search,
     int page = 1,
     int limit = 50,
   }) async {
     final json = await _api.get(
       '/productos/show',
       queryParameters: {
-        'comercioId': '$comercioId',
+        if (comercioId != null) 'comercioId': '$comercioId',
+        if (search != null && search.isNotEmpty) 'search': search,
         'page': '$page',
         'limit': '$limit',
       },
     );
 
     return PaginatedResponse.fromJson(json, ProductoModel.fromJson);
+  }
+
+  Future<ProductoModel> getProducto(int id) async {
+    final json = await _api.get('/productos/show/$id');
+    return ProductoModel.fromJson(json);
+  }
+
+  Future<List<PromocionModel>> getPromociones(int comercioId) async {
+    final rows = await _api.getList('/promociones/comercio/$comercioId');
+    return rows.map(PromocionModel.fromJson).toList();
+  }
+
+  Future<List<CuponModel>> getCuponesActivos() async {
+    final rows = await _api.getList('/promociones/cupones/show');
+    return rows.map(CuponModel.fromJson).toList();
+  }
+
+  Future<List<ValoracionModel>> getValoracionesComercio(int comercioId) async {
+    final rows = await _api.getList('/valoraciones/comercio/$comercioId');
+    return rows.map(ValoracionModel.fromJson).toList();
   }
 }

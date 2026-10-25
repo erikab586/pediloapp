@@ -48,7 +48,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     final auth = context.read<AuthProvider>();
     final destination =
-        auth.isAuthenticated ? (auth.homeRoute ?? '/role-selection') : '/role-selection';
+        auth.isAuthenticated ? (auth.homeRoute ?? '/welcome') : '/welcome';
     context.go(destination);
   }
 

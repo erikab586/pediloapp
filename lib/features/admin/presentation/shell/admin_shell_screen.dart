@@ -67,7 +67,7 @@ class _AdminShellScreenState extends State<AdminShellScreen> {
             categoriaProductoRepository: _categoriaProductoRepository,
             onLogout: () async {
               await context.read<AuthProvider>().logout();
-              if (context.mounted) context.go('/role-selection');
+              if (context.mounted) context.go('/welcome');
             },
           ),
         ],

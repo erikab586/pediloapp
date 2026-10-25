@@ -1,35 +1,49 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../core/models/api_models.dart';
+import '../../../core/storage/app_mode_storage.dart';
 import '../data/auth_repository.dart';
 import '../domain/user_role.dart';
 
 class AuthProvider extends ChangeNotifier {
-  AuthProvider({AuthRepository? repository})
-      : _repository = repository ?? AuthRepository() {
-    _repository.apiClient.onUnauthorized = _handleUnauthorized;
-  }
+  AuthProvider({
+    AuthRepository? repository,
+    AppModeStorage? modeStorage,
+  })  : _repository = repository ?? AuthRepository(),
+        _modeStorage = modeStorage ?? AppModeStorage();
 
   final AuthRepository _repository;
+  final AppModeStorage _modeStorage;
 
   UserModel? _user;
   bool _isLoading = false;
   bool _initialized = false;
-  bool _handlingUnauthorized = false;
+  bool _loginNavigationPending = false;
+  AppMode _appMode = AppMode.comprador;
 
   UserModel? get user => _user;
   bool get isAuthenticated => _user != null;
   bool get isLoading => _isLoading;
   bool get isInitialized => _initialized;
+  bool get loginNavigationPending => _loginNavigationPending;
   AuthRepository get repository => _repository;
+  AppMode get appMode => _appMode;
+
+  bool get canUseComercioMode =>
+      _user?.userRole == UserRole.comerciante ||
+      _user?.userRole == UserRole.administrador;
 
   Future<void> init() async {
     _isLoading = true;
     notifyListeners();
 
     try {
+      _appMode = await _modeStorage.read();
       final session = await _repository.restoreSession();
       _user = session?.user;
+      if (_user?.userRole == UserRole.cliente) {
+        _appMode = AppMode.comprador;
+      }
     } finally {
       _isLoading = false;
       _initialized = true;
@@ -40,7 +54,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> login({
     required String email,
     required String password,
-    required UserRole expectedRole,
+    UserRole? expectedRole,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -52,6 +66,9 @@ class AuthProvider extends ChangeNotifier {
         expectedRole: expectedRole,
       );
       _user = response.user;
+      _appMode = AppMode.comprador;
+      await _modeStorage.save(_appMode);
+      _loginNavigationPending = true;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -62,7 +79,6 @@ class AuthProvider extends ChangeNotifier {
     required String name,
     required String email,
     required String password,
-    required UserRole role,
     String? phone,
   }) async {
     _isLoading = true;
@@ -73,9 +89,22 @@ class AuthProvider extends ChangeNotifier {
         name: name,
         email: email,
         password: password,
-        role: role,
         phone: phone,
       );
+      _user = response.user;
+      _appMode = AppMode.comprador;
+      await _modeStorage.save(_appMode);
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> promoteToComerciante() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final response = await _repository.promoteToComerciante();
       _user = response.user;
     } finally {
       _isLoading = false;
@@ -83,39 +112,44 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> logout() async {
-    await _repository.logout();
-    _user = null;
+  void updateLocalUserContact({
+    required String name,
+    required String phone,
+  }) {
+    final currentUser = _user;
+    if (currentUser == null) return;
+    _user = UserModel(
+      id: currentUser.id,
+      name: name,
+      email: currentUser.email,
+      role: currentUser.role,
+      phone: phone,
+    );
     notifyListeners();
   }
 
-  /// Cierra sesión local sin llamar al backend (token inválido / usuario borrado).
-  Future<void> forceLogout() async {
-    if (_handlingUnauthorized) return;
-    _handlingUnauthorized = true;
-    try {
-      await _repository.clearLocalSession();
-      if (_user != null) {
-        _user = null;
-        notifyListeners();
-      }
-    } finally {
-      _handlingUnauthorized = false;
-    }
+  Future<void> setAppMode(AppMode mode) async {
+    if (mode == AppMode.comercio && !canUseComercioMode) return;
+    _appMode = mode;
+    await _modeStorage.save(mode);
+    notifyListeners();
   }
 
-  void _handleUnauthorized() {
-    // Solo cierra si había sesión activa (evita ruido en login fallido).
-    if (_user == null || _handlingUnauthorized) return;
-    Future.microtask(forceLogout);
+  Future<void> logout() async {
+    await _repository.logout();
+    _user = null;
+    _loginNavigationPending = false;
+    _appMode = AppMode.comprador;
+    notifyListeners();
   }
 
-  String homeRouteFor(UserRole role) => switch (role) {
-        UserRole.cliente => '/cliente/home',
-        UserRole.comerciante => '/comerciante/home',
-        UserRole.administrador => '/admin/home',
-      };
+  void completeLoginNavigation() {
+    _loginNavigationPending = false;
+  }
 
-  String? get homeRoute =>
-      _user == null ? null : homeRouteFor(_user!.userRole);
+  String homeRouteFor(UserRole role) {
+    return '/cliente/home';
+  }
+
+  String? get homeRoute => _user == null ? null : homeRouteFor(_user!.userRole);
 }

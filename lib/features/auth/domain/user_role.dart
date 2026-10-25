@@ -4,9 +4,9 @@ enum UserRole {
   administrador;
 
   String get title => switch (this) {
-        UserRole.cliente => 'App Cliente',
-        UserRole.comerciante => 'App Comerciante',
-        UserRole.administrador => 'App Administrador',
+        UserRole.cliente => 'Quiero pedir',
+        UserRole.comerciante => 'Tengo un comercio',
+        UserRole.administrador => 'Administración',
       };
 
   String get loginTitle => switch (this) {

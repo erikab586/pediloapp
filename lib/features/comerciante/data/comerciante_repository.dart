@@ -19,6 +19,7 @@ class PedidoDetailModel {
     this.cliente,
     this.direccion,
     this.notas,
+    this.valorEfectivo,
     this.motivoCancelacion,
     required this.createdAt,
   });
@@ -50,6 +51,9 @@ class PedidoDetailModel {
               referencia: direccion['referencia'] as String?,
             ),
       notas: json['notas'] as String?,
+      valorEfectivo: json['valorEfectivo'] != null
+          ? double.tryParse(json['valorEfectivo'].toString())
+          : null,
       motivoCancelacion: json['motivoCancelacion'] as String?,
       items: items
           .map((e) => PedidoItemModel.fromJson(
@@ -69,11 +73,16 @@ class PedidoDetailModel {
   final PedidoClienteModel? cliente;
   final PedidoDireccionModel? direccion;
   final String? notas;
+  final double? valorEfectivo;
   final String? motivoCancelacion;
   final List<PedidoItemModel> items;
   final DateTime createdAt;
 
   String get totalLabel => '\$${total.toStringAsFixed(0)}';
+
+  String? get valorEfectivoLabel => valorEfectivo == null
+      ? null
+      : '\$${valorEfectivo!.toStringAsFixed(0)}';
 }
 
 class PedidoClienteModel {
@@ -119,18 +128,46 @@ class PedidoItemModel {
     this.subtotal,
     this.producto,
     this.combo,
+    this.opcionalNombre,
+    this.extras = const [],
   });
 
   factory PedidoItemModel.fromJson(Map<String, dynamic> json) {
     final producto = json['producto'] as Map<String, dynamic>?;
     final combo = json['combo'] as Map<String, dynamic>?;
     final subtotal = json['subtotal'];
+    final precioRaw = json['precioUnit'] ?? json['precio'];
+    final extrasRaw = json['extras'];
+    final extras = extrasRaw is List
+        ? extrasRaw
+            .whereType<Map>()
+            .map((e) {
+              final m = Map<String, dynamic>.from(e);
+              final nombre =
+                  m['extraNombre'] as String? ?? m['extra_nombre'] as String? ?? 'Extra';
+              final cantidad = int.tryParse('${m['cantidad'] ?? 1}') ?? 1;
+              final precio =
+                  double.tryParse('${m['precio'] ?? 0}') ?? 0;
+              return '$nombre ×$cantidad (+${precio.toStringAsFixed(0)})';
+            })
+            .toList()
+        : <String>[];
+    final base = double.tryParse(precioRaw?.toString() ?? '0') ?? 0;
+    final cantidad = json['cantidad'] as int? ?? 1;
+    final extrasSum = extrasRaw is List
+        ? extrasRaw.whereType<Map>().fold<double>(0, (acc, e) {
+            final m = Map<String, dynamic>.from(e);
+            final q = int.tryParse('${m['cantidad'] ?? 1}') ?? 1;
+            final p = double.tryParse('${m['precio'] ?? 0}') ?? 0;
+            return acc + p * q;
+          })
+        : 0.0;
     return PedidoItemModel(
       id: json['id'] as int? ?? 0,
-      cantidad: json['cantidad'] as int? ?? 1,
-      precioUnit: double.tryParse(json['precioUnit']?.toString() ?? '0') ?? 0,
+      cantidad: cantidad,
+      precioUnit: base,
       subtotal: subtotal == null
-          ? null
+          ? base * cantidad + extrasSum
           : double.tryParse(subtotal.toString()),
       producto: producto == null
           ? null
@@ -141,9 +178,10 @@ class PedidoItemModel {
                   json['comercioId'] ??
                   0,
             }),
-      combo: combo == null
-          ? null
-          : ComboModel.fromJson(combo),
+      combo: combo == null ? null : ComboModel.fromJson(combo),
+      opcionalNombre: json['opcionalNombre'] as String? ??
+          json['opcional_nombre'] as String?,
+      extras: extras,
     );
   }
 
@@ -153,14 +191,21 @@ class PedidoItemModel {
   final double? subtotal;
   final ProductoModel? producto;
   final ComboModel? combo;
+  final String? opcionalNombre;
+  final List<String> extras;
 
-  String get nombre =>
-      combo?.nombre ??
-      producto?.nombre ??
-      'Item';
+  String get nombre {
+    final base = combo?.nombre ?? producto?.nombre ?? 'Ítem';
+    if (opcionalNombre != null && opcionalNombre!.isNotEmpty) {
+      return '$base ($opcionalNombre)';
+    }
+    return base;
+  }
 
   double get total => subtotal ?? (precioUnit * cantidad);
   String get totalLabel => '\$${total.toStringAsFixed(0)}';
+
+  String get extrasSummary => extras.join(' · ');
 }
 
 class DailyStatModel {
@@ -195,12 +240,27 @@ class PedidoModel {
     required this.tipoEntrega,
     this.clienteNombre,
     this.itemsResumen,
+    this.imagen,
+    this.comercioNombre,
     required this.createdAt,
   });
 
   factory PedidoModel.fromJson(Map<String, dynamic> json) {
     final usuario = json['usuario'] as Map<String, dynamic>?;
+    final comercio = json['comercio'] as Map<String, dynamic>?;
     final items = json['items'] as List<dynamic>? ?? [];
+    String? imagen = json['imagen'] as String?;
+    if (imagen == null || imagen.isEmpty) {
+      for (final item in items) {
+        final map = item as Map<String, dynamic>;
+        final producto = map['producto'] as Map<String, dynamic>?;
+        final img = producto?['imagen'] as String?;
+        if (img != null && img.isNotEmpty) {
+          imagen = img;
+          break;
+        }
+      }
+    }
 
     return PedidoModel(
       id: json['id'] as int,
@@ -209,16 +269,21 @@ class PedidoModel {
       metodoPago: json['metodoPago'] as String? ?? '',
       tipoEntrega: json['tipoEntrega'] as String? ?? '',
       clienteNombre: usuario?['name'] as String?,
-      itemsResumen: items
-          .map((item) {
-            final map = item as Map<String, dynamic>;
-            final producto = map['producto'] as Map<String, dynamic>?;
-            final nombre = producto?['nombre'] as String? ?? 'Producto';
-            final qty = map['cantidad'] as int? ?? 1;
-            return '$nombre x$qty';
-          })
-          .join(', '),
-      createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+      comercioNombre: comercio?['name'] as String?,
+      itemsResumen: (json['productosResumen'] as String?) ??
+          items
+              .map((item) {
+                final map = item as Map<String, dynamic>;
+                final producto = map['producto'] as Map<String, dynamic>?;
+                final nombre = producto?['nombre'] as String? ?? 'Producto';
+                final qty = map['cantidad'] as int? ?? 1;
+                return '$nombre x$qty';
+              })
+              .join(', '),
+      imagen: imagen,
+      createdAt: DateTime.tryParse(
+            (json['fechaPedido'] ?? json['createdAt']) as String? ?? '',
+          ) ??
           DateTime.now(),
     );
   }
@@ -230,9 +295,13 @@ class PedidoModel {
   final String tipoEntrega;
   final String? clienteNombre;
   final String? itemsResumen;
+  final String? imagen;
+  final String? comercioNombre;
   final DateTime createdAt;
 
   String get totalLabel => '\$${total.toStringAsFixed(0)}';
+
+  String get imageUrl => ApiConfig.resolveImageUrl(imagen);
 }
 
 class ComercioStatsModel {
@@ -672,6 +741,308 @@ class ComercianteRepository {
     await _api.delete('/productos/$id', authenticated: true);
   }
 
+  Future<List<DetalleProductoModel>> getDetallesProducto(
+    int productoId, {
+    bool soloActivos = false,
+  }) async {
+    final rows = await _api.getList(
+      '/productos/$productoId/detalles',
+      authenticated: true,
+      queryParameters: {
+        if (!soloActivos) 'soloActivos': 'false',
+      },
+    );
+    return rows.map(DetalleProductoModel.fromJson).toList();
+  }
+
+  Future<DetalleProductoModel> createDetalleProducto({
+    required int productoId,
+    required String titulo,
+    String? descripcion,
+    bool activo = true,
+    Uint8List? imagenBytes,
+  }) async {
+    final fields = <String, String>{
+      'titulo': titulo,
+      if (descripcion != null && descripcion.isNotEmpty)
+        'descripcion': descripcion,
+      'activo': activo.toString(),
+    };
+    final files = imagenBytes == null
+        ? null
+        : {
+            'imagen': MultipartFileData(
+              bytes: imagenBytes,
+              filename: 'detalle.jpg',
+            ),
+          };
+    final json = await _api.postMultipart(
+      '/productos/$productoId/detalles',
+      fields: fields,
+      files: files,
+      authenticated: true,
+    );
+    return DetalleProductoModel.fromJson(json);
+  }
+
+  Future<DetalleProductoModel> updateDetalleProducto({
+    required int id,
+    String? titulo,
+    String? descripcion,
+    bool? activo,
+    Uint8List? imagenBytes,
+  }) async {
+    final fields = <String, String>{
+      if (titulo != null) 'titulo': titulo,
+      if (descripcion != null) 'descripcion': descripcion,
+      if (activo != null) 'activo': activo.toString(),
+    };
+    final files = imagenBytes == null
+        ? null
+        : {
+            'imagen': MultipartFileData(
+              bytes: imagenBytes,
+              filename: 'detalle.jpg',
+            ),
+          };
+
+    final json = files == null
+        ? await _api.put(
+            '/productos/detalles/$id',
+            authenticated: true,
+            body: {
+              if (titulo != null) 'titulo': titulo,
+              if (descripcion != null) 'descripcion': descripcion,
+              if (activo != null) 'activo': activo,
+            },
+          )
+        : await _api.putMultipart(
+            '/productos/detalles/$id',
+            fields: fields,
+            files: files,
+            authenticated: true,
+          );
+    return DetalleProductoModel.fromJson(json);
+  }
+
+  Future<DetalleProductoModel> setDetalleProductoActivo(
+    int id,
+    bool activo,
+  ) async {
+    final json = await _api.patch(
+      '/productos/detalles/$id/activo',
+      authenticated: true,
+      body: {'activo': activo},
+    );
+    return DetalleProductoModel.fromJson(json);
+  }
+
+  Future<void> deleteDetalleProducto(int id) async {
+    await _api.delete('/productos/detalles/$id', authenticated: true);
+  }
+
+  Future<List<OpcionalModel>> getOpcionalesProducto(
+    int productoId, {
+    bool soloActivos = false,
+  }) async {
+    final rows = await _api.getList(
+      '/productos/$productoId/opcionales',
+      authenticated: true,
+      queryParameters: {
+        if (!soloActivos) 'soloActivos': 'false',
+      },
+    );
+    return rows.map(OpcionalModel.fromJson).toList();
+  }
+
+  Future<OpcionalModel> createOpcional({
+    required int productoId,
+    required String nombre,
+    required double precio,
+    String? descripcion,
+    bool activo = true,
+    Uint8List? imagenBytes,
+  }) async {
+    final fields = <String, String>{
+      'nombre': nombre,
+      'precio': '$precio',
+      if (descripcion != null && descripcion.isNotEmpty)
+        'descripcion': descripcion,
+      'activo': activo.toString(),
+    };
+    final files = imagenBytes == null
+        ? null
+        : {
+            'imagen': MultipartFileData(
+              bytes: imagenBytes,
+              filename: 'opcional.jpg',
+            ),
+          };
+    final json = await _api.postMultipart(
+      '/productos/$productoId/opcionales',
+      fields: fields,
+      files: files,
+      authenticated: true,
+    );
+    return OpcionalModel.fromJson(json);
+  }
+
+  Future<OpcionalModel> updateOpcional({
+    required int id,
+    String? nombre,
+    String? descripcion,
+    double? precio,
+    bool? activo,
+    Uint8List? imagenBytes,
+  }) async {
+    final fields = <String, String>{
+      if (nombre != null) 'nombre': nombre,
+      if (descripcion != null) 'descripcion': descripcion,
+      if (precio != null) 'precio': '$precio',
+      if (activo != null) 'activo': activo.toString(),
+    };
+    final files = imagenBytes == null
+        ? null
+        : {
+            'imagen': MultipartFileData(
+              bytes: imagenBytes,
+              filename: 'opcional.jpg',
+            ),
+          };
+    final json = files == null
+        ? await _api.put(
+            '/productos/opcionales/$id',
+            authenticated: true,
+            body: {
+              if (nombre != null) 'nombre': nombre,
+              if (descripcion != null) 'descripcion': descripcion,
+              if (precio != null) 'precio': precio,
+              if (activo != null) 'activo': activo,
+            },
+          )
+        : await _api.putMultipart(
+            '/productos/opcionales/$id',
+            fields: fields,
+            files: files,
+            authenticated: true,
+          );
+    return OpcionalModel.fromJson(json);
+  }
+
+  Future<OpcionalModel> setOpcionalActivo(int id, bool activo) async {
+    final json = await _api.patch(
+      '/productos/opcionales/$id/activo',
+      authenticated: true,
+      body: {'activo': activo},
+    );
+    return OpcionalModel.fromJson(json);
+  }
+
+  Future<void> deleteOpcional(int id) async {
+    await _api.delete('/productos/opcionales/$id', authenticated: true);
+  }
+
+  Future<List<ExtraModel>> getExtrasProducto(
+    int productoId, {
+    bool soloActivos = false,
+  }) async {
+    final rows = await _api.getList(
+      '/productos/$productoId/extras',
+      authenticated: true,
+      queryParameters: {
+        if (!soloActivos) 'soloActivos': 'false',
+      },
+    );
+    return rows.map(ExtraModel.fromJson).toList();
+  }
+
+  Future<ExtraModel> createExtra({
+    required int productoId,
+    required String nombre,
+    required double precio,
+    String? descripcion,
+    bool activo = true,
+    Uint8List? imagenBytes,
+  }) async {
+    final fields = <String, String>{
+      'nombre': nombre,
+      'precio': '$precio',
+      if (descripcion != null && descripcion.isNotEmpty)
+        'descripcion': descripcion,
+      'activo': activo.toString(),
+    };
+    final files = imagenBytes == null
+        ? null
+        : {
+            'imagen': MultipartFileData(
+              bytes: imagenBytes,
+              filename: 'extra.jpg',
+            ),
+          };
+    final json = await _api.postMultipart(
+      '/productos/$productoId/extras',
+      fields: fields,
+      files: files,
+      authenticated: true,
+    );
+    return ExtraModel.fromJson(json);
+  }
+
+  Future<ExtraModel> updateExtra({
+    required int id,
+    String? nombre,
+    String? descripcion,
+    double? precio,
+    bool? activo,
+    Uint8List? imagenBytes,
+  }) async {
+    final fields = <String, String>{
+      if (nombre != null) 'nombre': nombre,
+      if (descripcion != null) 'descripcion': descripcion,
+      if (precio != null) 'precio': '$precio',
+      if (activo != null) 'activo': activo.toString(),
+    };
+    final files = imagenBytes == null
+        ? null
+        : {
+            'imagen': MultipartFileData(
+              bytes: imagenBytes,
+              filename: 'extra.jpg',
+            ),
+          };
+    final json = files == null
+        ? await _api.put(
+            '/productos/extras/$id',
+            authenticated: true,
+            body: {
+              if (nombre != null) 'nombre': nombre,
+              if (descripcion != null) 'descripcion': descripcion,
+              if (precio != null) 'precio': precio,
+              if (activo != null) 'activo': activo,
+            },
+          )
+        : await _api.putMultipart(
+            '/productos/extras/$id',
+            fields: fields,
+            files: files,
+            authenticated: true,
+          );
+    return ExtraModel.fromJson(json);
+  }
+
+  Future<ExtraModel> setExtraActivo(int id, bool activo) async {
+    final json = await _api.patch(
+      '/productos/extras/$id/activo',
+      authenticated: true,
+      body: {'activo': activo},
+    );
+    return ExtraModel.fromJson(json);
+  }
+
+  Future<void> deleteExtra(int id) async {
+    await _api.delete('/productos/extras/$id', authenticated: true);
+  }
+
   Future<List<CategoriaModel>> getCategorias() async {
     final json = await _api.get('/categorias/show', queryParameters: {
       'limit': '50',
@@ -699,6 +1070,37 @@ class ComercianteRepository {
   }
 
   // ─── Combos ─────────────────────────────────────────────────────────────
+
+  Future<List<PromocionModel>> getPromociones(int comercioId) async {
+    final rows = await _api.getList('/promociones/comercio/$comercioId');
+    return rows.map(PromocionModel.fromJson).toList();
+  }
+
+  Future<PromocionModel> createPromocion({
+    required int comercioId,
+    required String nombre,
+    required String tipo,
+    required double valor,
+    String? descripcion,
+    String? fechaInicio,
+    String? fechaFin,
+  }) async {
+    final json = await _api.post(
+      '/promociones/register',
+      authenticated: true,
+      body: {
+        'comercioId': comercioId,
+        'nombre': nombre,
+        'tipo': tipo,
+        'valor': valor,
+        if (descripcion != null && descripcion.isNotEmpty)
+          'descripcion': descripcion,
+        if (fechaInicio != null) 'fechaInicio': fechaInicio,
+        if (fechaFin != null) 'fechaFin': fechaFin,
+      },
+    );
+    return PromocionModel.fromJson(json);
+  }
 
   Future<List<ComboModel>> getCombos(int comercioId) async {
     final rows = await _api.getList(

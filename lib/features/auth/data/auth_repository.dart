@@ -11,17 +11,20 @@ class AuthRepository {
     ApiClient? apiClient,
     TokenStorage? tokenStorage,
   })  : _api = apiClient ?? ApiClient(),
-        _storage = tokenStorage ?? TokenStorage();
+        _storage = tokenStorage ?? TokenStorage() {
+    _api.onAccessTokenExpired = _refreshStoredSession;
+  }
 
   final ApiClient _api;
   final TokenStorage _storage;
 
   ApiClient get apiClient => _api;
 
+  /// Login único. [expectedRole] solo se valida si se pasa (p. ej. admin).
   Future<AuthResponse> login({
     required String email,
     required String password,
-    required UserRole expectedRole,
+    UserRole? expectedRole,
   }) async {
     final json = await _api.post(
       '/auth/login',
@@ -29,7 +32,7 @@ class AuthRepository {
     );
     final response = AuthResponse.fromJson(json);
 
-    if (response.user.userRole != expectedRole) {
+    if (expectedRole != null && response.user.userRole != expectedRole) {
       throw ApiException(
         'Esta cuenta no corresponde al perfil ${expectedRole.title}.',
       );
@@ -43,7 +46,6 @@ class AuthRepository {
     required String name,
     required String email,
     required String password,
-    required UserRole role,
     String? phone,
   }) async {
     final json = await _api.post(
@@ -52,7 +54,7 @@ class AuthRepository {
         'name': name.trim(),
         'email': email.trim(),
         'password': password,
-        'role': role.apiValue,
+        'role': UserRole.cliente.apiValue,
         if (phone != null && phone.isNotEmpty) 'phone': phone.trim(),
       },
     );
@@ -61,8 +63,16 @@ class AuthRepository {
     return response;
   }
 
-  /// Restaura la sesión solo si el usuario sigue existiendo y el token es válido
-  /// en la API. Si no, limpia el almacenamiento local y retorna `null`.
+  Future<AuthResponse> promoteToComerciante() async {
+    final json = await _api.post(
+      '/auth/promote-comerciante',
+      authenticated: true,
+    );
+    final response = AuthResponse.fromJson(json);
+    await _persistSession(response);
+    return response;
+  }
+
   Future<AuthResponse?> restoreSession() async {
     final stored = await _storage.readSession();
     if (stored == null) return null;
@@ -72,21 +82,10 @@ class AuthRepository {
 
     try {
       return await _validateWithMe(stored.refreshToken);
-    } on ApiException catch (e) {
-      if (e.statusCode == 401 || e.statusCode == 403) {
-        try {
-          return await _refreshSession(stored.refreshToken);
-        } catch (_) {
-          await clearLocalSession();
-          return null;
-        }
-      }
-      // API no alcanzable o error de servidor: no mantener sesión local stale.
-      await clearLocalSession();
-      return null;
+    } on ApiException {
+      return _restoreCachedSession(stored);
     } catch (_) {
-      await clearLocalSession();
-      return null;
+      return _restoreCachedSession(stored);
     } finally {
       _api.suppressUnauthorized = false;
     }
@@ -96,14 +95,14 @@ class AuthRepository {
     final me = await _api.get('/users/me', authenticated: true);
     final activo = me['activo'];
     if (activo == false) {
-      await clearLocalSession();
       throw ApiException('Cuenta suspendida', statusCode: 401);
     }
 
     final user = UserModel.fromJson(me);
+    final stored = await _storage.readSession();
     final response = AuthResponse(
       accessToken: _api.accessToken ?? '',
-      refreshToken: refreshToken,
+      refreshToken: stored?.refreshToken ?? refreshToken,
       user: user,
     );
     await _persistSession(response);
@@ -120,11 +119,35 @@ class AuthRepository {
     return response;
   }
 
+  Future<bool> _refreshStoredSession() async {
+    final stored = await _storage.readSession();
+    if (stored == null) return false;
+    try {
+      await _refreshSession(stored.refreshToken);
+      return true;
+    } on ApiException catch (e) {
+      if (e.statusCode == 401 || e.statusCode == 403) {
+        return false;
+      }
+      rethrow;
+    }
+  }
+
+  AuthResponse _restoreCachedSession(StoredSession stored) {
+    final user = UserModel.fromJson(
+      jsonDecode(stored.userJson) as Map<String, dynamic>,
+    );
+    return AuthResponse(
+      accessToken: stored.accessToken,
+      refreshToken: stored.refreshToken,
+      user: user,
+    );
+  }
+
   Future<void> logout() async {
     try {
       await _api.post('/auth/logout', authenticated: true);
     } catch (_) {
-      // Ignorar errores de red al cerrar sesión localmente.
     } finally {
       await clearLocalSession();
     }

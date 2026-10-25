@@ -5,13 +5,10 @@ import 'package:provider/provider.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
-import '../domain/user_role.dart';
 import 'auth_provider.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key, required this.role});
-
-  final UserRole role;
+  const RegisterScreen({super.key});
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -44,11 +41,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         name: _nameController.text,
         email: _emailController.text,
         password: _passwordController.text,
-        role: widget.role,
         phone: _phoneController.text,
       );
       if (!mounted) return;
-      context.go(auth.homeRouteFor(widget.role));
+      context.go('/cliente/home');
     } on ApiException catch (e) {
       if (!mounted) return;
       _showError(e.message);
@@ -77,7 +73,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
-        title: Text('Registro — ${widget.role.title}'),
+        title: const Text('Crear cuenta'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -86,6 +82,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Text(
+                'Empezás como cliente. Si tenés un local, después podés registrarlo desde tu perfil.',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  color: AppColors.gray500,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 20),
               TextFormField(
                 controller: _nameController,
                 textInputAction: TextInputAction.next,
@@ -123,9 +128,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 keyboardType: TextInputType.phone,
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
-                  labelText: 'Teléfono (opcional)',
+                  labelText: 'Teléfono',
                   prefixIcon: Icon(Icons.phone_outlined),
                 ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Ingresá tu teléfono';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
               TextFormField(

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/storage/app_mode_storage.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/error_messages.dart';
 import '../../../../core/widgets/panel/panel_widgets.dart';
@@ -33,7 +34,6 @@ class ComercianteDashboardTab extends StatefulWidget {
     required this.onGoProductos,
     required this.onGoVentas,
     required this.onGoLocal,
-    required this.onOpenCombos,
   });
 
   final ComercianteRepository repository;
@@ -45,7 +45,6 @@ class ComercianteDashboardTab extends StatefulWidget {
   final VoidCallback onGoProductos;
   final VoidCallback onGoVentas;
   final VoidCallback onGoLocal;
-  final VoidCallback onOpenCombos;
 
   @override
   State<ComercianteDashboardTab> createState() =>
@@ -130,6 +129,7 @@ class _ComercianteDashboardTabState extends State<ComercianteDashboardTab> {
                       : 'Pendiente de aprobación'),
               userName: auth.user?.name ?? 'Comerciante',
               estaAbierto: comercio?.estaAbierto ?? false,
+              horarioAutomatico: comercio?.horarioAutomatico ?? false,
               aprobado: comercio?.aprobado ?? false,
               onToggleAbierto: comercio == null || !comercio.canToggleAbierto
                   ? null
@@ -410,8 +410,7 @@ class _ComerciantePedidosTabState extends State<ComerciantePedidosTab> {
                 )
               : _loading
                   ? const Center(
-                      child:
-                          CircularProgressIndicator(color: AppColors.yellow),
+                      child: CircularProgressIndicator(color: AppColors.yellow),
                     )
                   : _pedidos.isEmpty
                       ? const EmptyPanelState(
@@ -455,13 +454,11 @@ class ComercianteProductosTab extends StatefulWidget {
     required this.repository,
     required this.categoriaProductoRepository,
     required this.comercio,
-    this.onOpenCombos,
   });
 
   final ComercianteRepository repository;
   final CategoriaProductoRepository categoriaProductoRepository;
   final ComercioModel? comercio;
-  final VoidCallback? onOpenCombos;
 
   @override
   State<ComercianteProductosTab> createState() =>
@@ -629,16 +626,10 @@ class _ComercianteProductosTabState extends State<ComercianteProductosTab> {
             children: [
               IconButton(
                 onPressed: _openCategoriasProducto,
-                icon: const Icon(Icons.category_outlined, color: AppColors.white),
+                icon:
+                    const Icon(Icons.category_outlined, color: AppColors.white),
                 tooltip: 'Categorías de producto',
               ),
-              if (widget.onOpenCombos != null)
-                IconButton(
-                  onPressed: widget.onOpenCombos,
-                  icon: const Icon(Icons.local_offer_outlined,
-                      color: AppColors.white),
-                  tooltip: 'Combos',
-                ),
               IconButton(
                 onPressed: comercio == null ? null : () => _openForm(),
                 icon: const Icon(Icons.add_circle, color: AppColors.yellow),
@@ -656,8 +647,7 @@ class _ComercianteProductosTabState extends State<ComercianteProductosTab> {
                 )
               : _loading
                   ? const Center(
-                      child:
-                          CircularProgressIndicator(color: AppColors.yellow),
+                      child: CircularProgressIndicator(color: AppColors.yellow),
                     )
                   : _productos.isEmpty
                       ? const EmptyPanelState(
@@ -712,94 +702,94 @@ class _ProductoTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
         child: Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.navy.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.navy.withValues(alpha: 0.06),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: producto.imagen != null
-                ? Image.network(
-                    producto.imageUrl,
-                    width: 56,
-                    height: 56,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _productoPlaceholder(),
-                  )
-                : _productoPlaceholder(),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  producto.nombre,
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: AppColors.navy,
-                  ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: producto.imagen != null
+                    ? Image.network(
+                        producto.imageUrl,
+                        width: 56,
+                        height: 56,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _productoPlaceholder(),
+                      )
+                    : _productoPlaceholder(),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      producto.nombre,
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: AppColors.navy,
+                      ),
+                    ),
+                    if (producto.categoriaProductoId != null)
+                      Text(
+                        producto.categoriaLabel,
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: AppColors.gray500,
+                        ),
+                      ),
+                  ],
                 ),
-                if (producto.categoriaProductoId != null)
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
                   Text(
-                    producto.categoriaLabel,
+                    producto.precioLabel,
                     style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: AppColors.gray500,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.navy,
                     ),
                   ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                producto.precioLabel,
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.navy,
-                ),
+                  PanelBadge(
+                    label: producto.activo ? 'Activo' : 'Inactivo',
+                    background: producto.activo
+                        ? AppColors.green.withValues(alpha: 0.15)
+                        : AppColors.gray400.withValues(alpha: 0.2),
+                    foreground:
+                        producto.activo ? AppColors.green : AppColors.gray500,
+                  ),
+                ],
               ),
-              PanelBadge(
-                label: producto.activo ? 'Activo' : 'Inactivo',
-                background: producto.activo
-                    ? AppColors.green.withValues(alpha: 0.15)
-                    : AppColors.gray400.withValues(alpha: 0.2),
-                foreground:
-                    producto.activo ? AppColors.green : AppColors.gray500,
+              PopupMenuButton(
+                icon: const Icon(Icons.more_vert, color: AppColors.gray500),
+                itemBuilder: (_) => [
+                  const PopupMenuItem(value: 'edit', child: Text('Editar')),
+                  PopupMenuItem(
+                    value: 'toggle',
+                    child: Text(producto.activo ? 'Desactivar' : 'Activar'),
+                  ),
+                  const PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+                ],
+                onSelected: (v) {
+                  if (v == 'edit') onTap();
+                  if (v == 'toggle') onToggleActivo();
+                  if (v == 'delete') onDelete();
+                },
               ),
             ],
           ),
-          PopupMenuButton(
-            icon: const Icon(Icons.more_vert, color: AppColors.gray500),
-            itemBuilder: (_) => [
-              const PopupMenuItem(value: 'edit', child: Text('Editar')),
-              PopupMenuItem(
-                value: 'toggle',
-                child: Text(producto.activo ? 'Desactivar' : 'Activar'),
-              ),
-              const PopupMenuItem(value: 'delete', child: Text('Eliminar')),
-            ],
-            onSelected: (v) {
-              if (v == 'edit') onTap();
-              if (v == 'toggle') onToggleActivo();
-              if (v == 'delete') onDelete();
-            },
-          ),
-        ],
-      ),
         ),
       ),
     );
@@ -903,12 +893,12 @@ class _ComercianteVentasTabState extends State<ComercianteVentasTab> {
               ? const EmptyPanelState(
                   icon: Icons.bar_chart_outlined,
                   title: 'Sin comercio',
-                  subtitle: 'Las estadísticas aparecerán cuando tengas un local.',
+                  subtitle:
+                      'Las estadísticas aparecerán cuando tengas un local.',
                 )
               : _loading
                   ? const Center(
-                      child:
-                          CircularProgressIndicator(color: AppColors.yellow),
+                      child: CircularProgressIndicator(color: AppColors.yellow),
                     )
                   : RefreshIndicator(
                       color: AppColors.yellow,
@@ -1119,7 +1109,7 @@ class ComercianteMasTab extends StatelessWidget {
     required this.comercios,
     required this.onLogout,
     required this.onComercioUpdated,
-    this.onOpenCombos,
+    this.onOpenPromociones,
   });
 
   final ComercioFormRepository formRepository;
@@ -1129,7 +1119,7 @@ class ComercianteMasTab extends StatelessWidget {
   final List<ComercioModel> comercios;
   final VoidCallback onLogout;
   final VoidCallback onComercioUpdated;
-  final VoidCallback? onOpenCombos;
+  final VoidCallback? onOpenPromociones;
 
   Future<void> _editLocal(BuildContext context) async {
     final cats = await formRepository.getCategorias();
@@ -1287,14 +1277,40 @@ class ComercianteMasTab extends StatelessWidget {
                     subtitle: 'Rubros de locales en la plataforma',
                     onTap: () => _openCategoriasComercio(context),
                   ),
-                  if (comercio != null && onOpenCombos != null)
+                  if (comercio != null && onOpenPromociones != null)
                     _MenuItemData(
-                      icon: Icons.local_offer_outlined,
-                      label: 'Combos',
-                      subtitle:
-                          'Packs de productos a precio especial',
-                      onTap: onOpenCombos!,
+                      icon: Icons.percent,
+                      label: 'Promociones',
+                      subtitle: 'Descuentos %, fijo o 2x1',
+                      onTap: onOpenPromociones!,
                     ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _MenuSection(
+                title: 'Comunicación',
+                items: [
+                  _MenuItemData(
+                    icon: Icons.chat_bubble_outline,
+                    label: 'Mensajes',
+                    subtitle: 'Conversá con tus clientes',
+                    onTap: () => context.push('/cliente/chat?rol=comerciante'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _MenuSection(
+                title: 'Modo de la app',
+                items: [
+                  _MenuItemData(
+                    icon: Icons.shopping_bag_outlined,
+                    label: 'Modo comprador',
+                    subtitle: 'Pedí en otros comercios como cliente',
+                    onTap: () async {
+                      await auth.setAppMode(AppMode.comprador);
+                      if (context.mounted) context.go('/cliente/home');
+                    },
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -1344,6 +1360,7 @@ class _MerchantHeader extends StatelessWidget {
     required this.subtitle,
     required this.userName,
     required this.estaAbierto,
+    this.horarioAutomatico = false,
     this.aprobado = true,
     this.onToggleAbierto,
     this.comercios = const [],
@@ -1355,6 +1372,7 @@ class _MerchantHeader extends StatelessWidget {
   final String subtitle;
   final String userName;
   final bool estaAbierto;
+  final bool horarioAutomatico;
   final bool aprobado;
   final ValueChanged<bool>? onToggleAbierto;
   final List<ComercioModel> comercios;
@@ -1405,12 +1423,25 @@ class _MerchantHeader extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      estaAbierto ? 'Abierto' : 'Cerrado',
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        color: AppColors.gray400,
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          estaAbierto ? 'Abierto' : 'Cerrado',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: AppColors.gray400,
+                          ),
+                        ),
+                        if (horarioAutomatico)
+                          Text(
+                            'Auto horario',
+                            style: GoogleFonts.poppins(
+                              fontSize: 10,
+                              color: AppColors.yellow,
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(width: 6),
                     Switch(
@@ -1471,7 +1502,8 @@ class _MerchantHeader extends StatelessWidget {
                   value: selectedComercio,
                   isExpanded: true,
                   dropdownColor: AppColors.navyLight,
-                  style: GoogleFonts.poppins(color: AppColors.white, fontSize: 13),
+                  style:
+                      GoogleFonts.poppins(color: AppColors.white, fontSize: 13),
                   items: comercios
                       .map(
                         (c) => DropdownMenuItem(
@@ -1522,7 +1554,7 @@ class _PanelAppBar extends StatelessWidget {
               children: [
                 Text(
                   title,
-                    style: GoogleFonts.poppins(
+                  style: GoogleFonts.poppins(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                     color: AppColors.white,
@@ -1581,35 +1613,76 @@ class PedidoCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '#${pedido.id}',
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.navy,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: SizedBox(
+                  width: 56,
+                  height: 56,
+                  child: pedido.imageUrl.isNotEmpty
+                      ? Image.network(
+                          pedido.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: AppColors.cream,
+                            alignment: Alignment.center,
+                            child: const Icon(
+                              Icons.receipt_long,
+                              color: AppColors.navy,
+                            ),
+                          ),
+                        )
+                      : Container(
+                          color: AppColors.cream,
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.receipt_long,
+                            color: AppColors.navy,
+                          ),
+                        ),
                 ),
               ),
-              const Spacer(),
-              PanelBadge(
-                label: pedido.status,
-                background: statusStyle.bg,
-                foreground: statusStyle.fg,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          '#${pedido.id}',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.navy,
+                          ),
+                        ),
+                        const Spacer(),
+                        PanelBadge(
+                          label: pedido.status,
+                          background: statusStyle.bg,
+                          foreground: statusStyle.fg,
+                        ),
+                      ],
+                    ),
+                    if (pedido.clienteNombre != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        pedido.clienteNombre!,
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: AppColors.gray500,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ],
           ),
-          if (pedido.clienteNombre != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              pedido.clienteNombre!,
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                color: AppColors.gray500,
-              ),
-            ),
-          ],
           if (pedido.itemsResumen != null && pedido.itemsResumen!.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.only(top: 8),
               child: Text(
                 pedido.itemsResumen!,
                 style: GoogleFonts.poppins(fontSize: 13, color: AppColors.navy),
@@ -1668,9 +1741,8 @@ class PedidoCard extends StatelessWidget {
               child: FilledButton(
                 onPressed: () => onAction!(action.status),
                 style: FilledButton.styleFrom(
-                  backgroundColor: isReject
-                      ? const Color(0xFFFEE2E2)
-                      : action.color,
+                  backgroundColor:
+                      isReject ? const Color(0xFFFEE2E2) : action.color,
                   foregroundColor:
                       isReject ? const Color(0xFFEF4444) : AppColors.white,
                   padding: const EdgeInsets.symmetric(vertical: 10),
@@ -1724,7 +1796,9 @@ class PedidoCard extends StatelessWidget {
 
   static List<_PedidoAction> _nextActions(String status, String tipoEntrega) {
     final isDelivery = tipoEntrega.toLowerCase().contains('delivery') ||
-        tipoEntrega.toLowerCase().contains('envio');
+        tipoEntrega.toLowerCase().contains('envio') ||
+        tipoEntrega.toLowerCase().contains('envío') ||
+        tipoEntrega.toLowerCase().contains('domicilio');
 
     return switch (status) {
       'Pendiente' => [
@@ -1738,8 +1812,7 @@ class PedidoCard extends StatelessWidget {
           _PedidoAction('Listo', 'Listo', AppColors.blue),
         ],
       'Listo' || 'En espera' => [
-          if (isDelivery)
-            _PedidoAction('Enviado', 'Enviado', AppColors.blue),
+          if (isDelivery) _PedidoAction('Enviado', 'Enviado', AppColors.blue),
           _PedidoAction('Entregado', 'Entregado', AppColors.green),
         ],
       'Enviado' => [
@@ -1833,7 +1906,8 @@ class _MenuTile extends StatelessWidget {
       subtitle: item.subtitle != null
           ? Text(
               item.subtitle!,
-              style: GoogleFonts.poppins(fontSize: 12, color: AppColors.gray500),
+              style:
+                  GoogleFonts.poppins(fontSize: 12, color: AppColors.gray500),
             )
           : null,
       trailing: item.onTap != null

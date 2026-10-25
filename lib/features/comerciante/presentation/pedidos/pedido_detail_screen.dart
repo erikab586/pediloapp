@@ -164,6 +164,10 @@ class _Body extends StatelessWidget {
         if (pedido.direccion != null) const SizedBox(height: 10),
         _ItemsCard(pedido: pedido),
         const SizedBox(height: 10),
+        if (pedido.notas != null && pedido.notas!.trim().isNotEmpty) ...[
+          _NotaClienteCard(nota: pedido.notas!.trim()),
+          const SizedBox(height: 10),
+        ],
         _TotalsCard(pedido: pedido),
         if (pedido.motivoCancelacion != null &&
             pedido.motivoCancelacion!.isNotEmpty) ...[
@@ -430,6 +434,14 @@ class _ItemsCard extends StatelessWidget {
                             color: AppColors.gray500,
                           ),
                         ),
+                        if (it.extrasSummary.isNotEmpty)
+                          Text(
+                            it.extrasSummary,
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              color: AppColors.gray500,
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -464,6 +476,10 @@ class _TotalsCard extends StatelessWidget {
           _row('Tipo de entrega', pedido.tipoEntrega),
           const SizedBox(height: 4),
           _row('Método de pago', pedido.metodoPago),
+          if (pedido.valorEfectivoLabel != null) ...[
+            const SizedBox(height: 4),
+            _row('Paga con', pedido.valorEfectivoLabel!),
+          ],
           const Divider(height: 18),
           _row(
             'Total',
@@ -496,6 +512,52 @@ class _TotalsCard extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _NotaClienteCard extends StatelessWidget {
+  const _NotaClienteCard({required this.nota});
+
+  final String nota;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.yellow.withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.yellow),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.sticky_note_2_outlined, color: AppColors.navy),
+              const SizedBox(width: 8),
+              Text(
+                'Nota del cliente',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.navy,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            nota,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              color: AppColors.navy,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -604,7 +666,9 @@ class _ActionsRow extends StatelessWidget {
 
   List<_ActionData> _nextActions(String status, String tipoEntrega) {
     final isDelivery = tipoEntrega.toLowerCase().contains('delivery') ||
-        tipoEntrega.toLowerCase().contains('envio');
+        tipoEntrega.toLowerCase().contains('envio') ||
+        tipoEntrega.toLowerCase().contains('envío') ||
+        tipoEntrega.toLowerCase().contains('domicilio');
 
     return switch (status) {
         'Pendiente' => [
