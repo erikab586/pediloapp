@@ -11,6 +11,7 @@ workflows:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.pedilo.pedidosApp
+        generate_profiles: true
     scripts:
       - name: Get Flutter packages
         script: |
