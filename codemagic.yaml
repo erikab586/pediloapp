@@ -8,13 +8,19 @@ workflows:
     environment:
       vars:
         BUNDLE_ID: "com.pedilo.pedidosApp"
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.pedilo.pedidosApp
     scripts:
       - name: Get Flutter packages
         script: |
           flutter pub get
+      - name: Set up code signing settings on Xcode project
+        script: |
+          xcode-project use-profiles
       - name: Build Flutter IPA in Release mode
         script: |
-          flutter build ipa --release
+          flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
