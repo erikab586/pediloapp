@@ -8,13 +8,13 @@ workflows:
     environment:
       vars:
         BUNDLE_ID: "com.pedilo.pedidosApp"
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.pedilo.pedidosApp
     scripts:
       - name: Get Flutter packages
         script: |
           flutter pub get
-      - name: Fetch signing files and create profiles
-        script: |
-          app-store-connect fetch-signing-files "com.pedilo.pedidosApp" --type IOS_APP_STORE --create
       - name: Set up code signing settings on Xcode project
         script: |
           xcode-project use-profiles
