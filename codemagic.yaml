@@ -4,7 +4,7 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
     integrations:
-      app_store_connect: "app_store_credentials"
+      app_store_connect: "Erika Brito"
     environment:
       vars:
         BUNDLE_ID: "com.pedilo.pedidosApp"
