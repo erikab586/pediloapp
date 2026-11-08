@@ -200,10 +200,11 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
       widget.onSaved?.call(saved);
 
       if (widget.producto == null && _detalles.isEmpty) {
+        Navigator.pop(context, saved);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Producto creado. Podés agregar detalles (ej. peperoni, orégano).',
+              'Producto creado. Podés editarlo para agregar detalles.',
             ),
             behavior: SnackBarBehavior.floating,
           ),

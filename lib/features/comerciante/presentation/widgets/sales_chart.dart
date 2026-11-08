@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/currency.dart';
 import '../../data/comerciante_repository.dart';
 
 class SalesBarChart extends StatelessWidget {
@@ -68,9 +69,8 @@ class SalesBarChart extends StatelessWidget {
               children: recent.map((day) {
                 final heightFactor =
                     maxVal > 0 ? day.totalVentas / maxVal : 0.0;
-                final label = day.fecha.length >= 5
-                    ? day.fecha.substring(5)
-                    : day.fecha;
+                final label =
+                    day.fecha.length >= 5 ? day.fecha.substring(5) : day.fecha;
                 return Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 3),
@@ -78,7 +78,7 @@ class SalesBarChart extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         Text(
-                          '\$${day.totalVentas.toStringAsFixed(0)}',
+                          formatUYU(day.totalVentas),
                           style: GoogleFonts.poppins(
                             fontSize: 8,
                             color: AppColors.gray500,

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/domain/user_role.dart';
 import '../../features/auth/presentation/auth_provider.dart';
 import '../../features/auth/presentation/login_screen.dart';
+import '../../features/auth/presentation/password_reset_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
 import '../../features/auth/presentation/welcome_screen.dart';
 import '../../features/cliente/presentation/checkout/checkout_screen.dart';
@@ -99,6 +100,16 @@ GoRouter createAppRouter(AuthProvider authProvider) {
       GoRoute(
         path: '/register/:role',
         builder: (context, state) => const RegisterScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => const PasswordResetScreen(),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (context, state) => PasswordResetScreen(
+          token: state.uri.queryParameters['token'],
+        ),
       ),
       GoRoute(
         path: '/cliente/home',

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/storage/app_mode_storage.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/currency.dart';
 import '../../../../core/utils/error_messages.dart';
 import '../../../../core/widgets/panel/panel_widgets.dart';
 import '../../../../core/widgets/pedilo_logo.dart';
@@ -166,13 +167,11 @@ class _ComercianteDashboardTabState extends State<ComercianteDashboardTab> {
                       highlight: true,
                     ),
                     StatCardData(
-                      value:
-                          '\$${(_stats?.totalVentas ?? 0).toStringAsFixed(0)}',
+                      value: formatUYU(_stats?.totalVentas ?? 0),
                       label: 'Ventas hoy',
                     ),
                     StatCardData(
-                      value:
-                          '\$${(_stats?.ticketPromedio ?? 0).toStringAsFixed(0)}',
+                      value: formatUYU(_stats?.ticketPromedio ?? 0),
                       label: 'Ticket promedio',
                     ),
                     StatCardData(
@@ -909,8 +908,7 @@ class _ComercianteVentasTabState extends State<ComercianteVentasTab> {
                           StatGrid(
                             cards: [
                               StatCardData(
-                                value:
-                                    '\$${(stats?.totalVentas ?? 0).toStringAsFixed(0)}',
+                                value: formatUYU(stats?.totalVentas ?? 0),
                                 label: 'Ventas',
                                 highlight: true,
                               ),
@@ -919,8 +917,7 @@ class _ComercianteVentasTabState extends State<ComercianteVentasTab> {
                                 label: 'Pedidos',
                               ),
                               StatCardData(
-                                value:
-                                    '\$${(stats?.ticketPromedio ?? 0).toStringAsFixed(0)}',
+                                value: formatUYU(stats?.ticketPromedio ?? 0),
                                 label: 'Ticket promedio',
                               ),
                               StatCardData(
@@ -949,7 +946,7 @@ class _ComercianteVentasTabState extends State<ComercianteVentasTab> {
                                       (p) => _VentasRankRow(
                                         title: p.nombre,
                                         subtitle:
-                                            '${p.cantidadVendida} uds · \$${p.total.toStringAsFixed(0)}',
+                                            '${p.cantidadVendida} uds · ${formatUYU(p.total)}',
                                       ),
                                     )
                                     .toList(),

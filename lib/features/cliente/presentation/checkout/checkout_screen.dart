@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/analytics/app_analytics.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/currency.dart';
 import '../../../../core/utils/error_messages.dart';
 import '../../../../core/widgets/skeleton.dart';
 import '../../../auth/presentation/auth_provider.dart';
@@ -36,12 +37,12 @@ class _ClienteCheckoutScreenState extends State<ClienteCheckoutScreen> {
   final _notaController = TextEditingController();
   bool _loading = true;
   bool _confirming = false;
+  String? _previewError;
   int _step = 0; // 0 entrega, 1 pago, 2 confirmar
 
   static const _steps = ['Entrega', 'Pago', 'Confirmar'];
 
-  bool get _isEfectivo =>
-      _metodoPago.toLowerCase().contains('efectivo');
+  bool get _isEfectivo => _metodoPago.toLowerCase().contains('efectivo');
 
   double get _totalPedido => _preview?.total ?? 0;
 
@@ -78,9 +79,10 @@ class _ClienteCheckoutScreenState extends State<ClienteCheckoutScreen> {
         _metodoPago = comercio.metodosPago.first;
       }
       _direccionId = direcciones
-          .where((d) => d.predeterminada)
-          .map((d) => d.id)
-          .firstOrNull;
+              .where((d) => d.predeterminada)
+              .map((d) => d.id)
+              .firstOrNull ??
+          (direcciones.isNotEmpty ? direcciones.first.id : null);
 
       await _refreshPreview();
       if (!mounted) return;
@@ -104,8 +106,23 @@ class _ClienteCheckoutScreenState extends State<ClienteCheckoutScreen> {
             : _cuponController.text.trim(),
       );
       if (!mounted) return;
-      setState(() => _preview = preview);
-    } catch (_) {}
+      setState(() {
+        _preview = preview;
+        _previewError = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _preview = null;
+        _previewError = mensajeErrorEspanol(error);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_previewError!),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   bool get _needsDireccion {
@@ -121,7 +138,81 @@ class _ClienteCheckoutScreenState extends State<ClienteCheckoutScreen> {
     return _direccionId != null;
   }
 
+  Future<void> _agregarDireccion() async {
+    final controller = TextEditingController();
+    final referenciaController = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Nueva dirección'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              autofocus: true,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                labelText: 'Dirección',
+                hintText: 'Av. Mcal. López 1234',
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: referenciaController,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                labelText: 'Referencia (opcional)',
+                hintText: 'Portón negro, timbre 2',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+
+    final direccion = controller.text.trim();
+    final referencia = referenciaController.text.trim();
+    controller.dispose();
+    referenciaController.dispose();
+
+    if (ok != true || direccion.isEmpty) return;
+
+    try {
+      final creada = await _repository.createDireccion(
+        tipo: 'Envío a domicilio',
+        direccion: direccion,
+        referencia: referencia.isEmpty ? null : referencia,
+      );
+      if (!mounted) return;
+      await _load();
+      if (!mounted) return;
+      setState(() => _direccionId = creada.id);
+      await _refreshPreview();
+    } catch (e) {
+      if (!mounted) return;
+      await mostrarAlertaError(context, mensaje: mensajeErrorEspanol(e));
+    }
+  }
+
   Future<void> _next() async {
+    if (_preview == null) {
+      await mostrarAlertaError(
+        context,
+        mensaje: _previewError ?? 'No se pudo calcular el total del pedido.',
+      );
+      return;
+    }
     if (_step == 0) {
       if (!_canContinueStep0) {
         await mostrarAlertaError(
@@ -212,6 +303,19 @@ class _ClienteCheckoutScreenState extends State<ClienteCheckoutScreen> {
       return;
     }
 
+    final preview = _preview;
+    if (preview != null && !preview.cumpleMontoMinimo) {
+      if (!mounted) return;
+      await mostrarAlertaError(
+        context,
+        titulo: 'Pedido mínimo',
+        mensaje: 'El pedido mínimo para envío es '
+            '${formatUYU(preview.montoMinimo)}. '
+            'Agregá más productos o elegí retiro en el local.',
+      );
+      return;
+    }
+
     setState(() => _confirming = true);
     try {
       final valorRaw =
@@ -220,7 +324,9 @@ class _ClienteCheckoutScreenState extends State<ClienteCheckoutScreen> {
         metodoPago: _metodoPago,
         tipoEntrega: _tipoEntrega,
         direccionId: _needsDireccion ? _direccionId : null,
-        entregaPrecio: _preview?.entregaPrecio,
+        cuponCodigo: _cuponController.text.trim().isEmpty
+            ? null
+            : _cuponController.text.trim(),
         notas: _notaController.text.trim().isEmpty
             ? null
             : _notaController.text.trim(),
@@ -232,7 +338,7 @@ class _ClienteCheckoutScreenState extends State<ClienteCheckoutScreen> {
         '/cliente/pedidos/${pedido.id}/exito',
         extra: {
           'comercioNombre': _comercio?.name ?? pedido.comercioNombre,
-          'total': _preview?.total ?? pedido.total,
+          'total': pedido.total,
           'tipoEntrega': _tipoEntrega,
         },
       );
@@ -307,6 +413,15 @@ class _ClienteCheckoutScreenState extends State<ClienteCheckoutScreen> {
                       if (_step == 0) _buildEntregaStep(comercio),
                       if (_step == 1) _buildPagoStep(comercio),
                       if (_step == 2) _buildConfirmarStep(preview),
+                      if (_previewError != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _previewError!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 88),
                     ],
                   ),
@@ -396,12 +511,11 @@ class _ClienteCheckoutScreenState extends State<ClienteCheckoutScreen> {
             EmptyActionState(
               icon: Icons.location_off_outlined,
               title: 'Sin direcciones',
-              subtitle:
-                  'Agregá una dirección para poder pedir con delivery.',
-              actionLabel: 'Ir a direcciones',
-              onAction: () => context.push('/cliente/home?tab=4'),
+              subtitle: 'Agregá una dirección para poder pedir con delivery.',
+              actionLabel: 'Agregar dirección',
+              onAction: _agregarDireccion,
             )
-          else
+          else ...[
             ..._direcciones.map((d) {
               final selected = _direccionId == d.id;
               return Padding(
@@ -456,6 +570,16 @@ class _ClienteCheckoutScreenState extends State<ClienteCheckoutScreen> {
                 ),
               );
             }),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _agregarDireccion,
+                icon: const Icon(Icons.add_location_alt_outlined, size: 18),
+                label: const Text('Agregar dirección'),
+              ),
+            ),
+          ],
         ],
       ],
     );
@@ -540,7 +664,7 @@ class _ClienteCheckoutScreenState extends State<ClienteCheckoutScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Con cuánto vas a pagar (debe ser ≥ \$${_totalPedido.toStringAsFixed(0)})',
+            'Con cuánto vas a pagar (debe ser ≥ ${formatUYU(_totalPedido)})',
             style: GoogleFonts.poppins(fontSize: 12, color: AppColors.gray500),
           ),
           const SizedBox(height: 8),
@@ -552,7 +676,7 @@ class _ClienteCheckoutScreenState extends State<ClienteCheckoutScreen> {
               hintText: '0.00',
               filled: true,
               fillColor: AppColors.white,
-              prefixText: '\$ ',
+              prefixText: 'UYU \$ ',
             ),
           ),
         ],
@@ -630,28 +754,34 @@ class _ClienteCheckoutScreenState extends State<ClienteCheckoutScreen> {
                   _valorEfectivoController.text.trim().isNotEmpty)
                 _SummaryRow(
                   label: 'Valor',
-                  value:
-                      '\$${_valorEfectivoController.text.trim().replaceAll(',', '.')}',
+                  value: formatUYU(
+                    double.tryParse(
+                          _valorEfectivoController.text
+                              .trim()
+                              .replaceAll(',', '.'),
+                        ) ??
+                        0,
+                  ),
                 ),
               const Divider(height: 24),
               if (preview != null) ...[
                 _SummaryRow(
                   label: 'Subtotal',
-                  value: '\$${preview.subtotal.toStringAsFixed(0)}',
+                  value: formatUYU(preview.subtotal),
                 ),
                 if (preview.descuento > 0)
                   _SummaryRow(
                     label: 'Descuento',
-                    value: '-\$${preview.descuento.toStringAsFixed(0)}',
+                    value: '-${formatUYU(preview.descuento)}',
                   ),
                 if (preview.entregaPrecio > 0)
                   _SummaryRow(
                     label: 'Envío',
-                    value: '\$${preview.entregaPrecio.toStringAsFixed(0)}',
+                    value: formatUYU(preview.entregaPrecio),
                   ),
                 _SummaryRow(
                   label: 'Total',
-                  value: '\$${preview.total.toStringAsFixed(0)}',
+                  value: formatUYU(preview.total),
                   bold: true,
                 ),
               ],
@@ -788,7 +918,7 @@ class _StickyCheckoutBar extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '\$${total!.toStringAsFixed(0)}',
+                        formatUYU(total!),
                         style: GoogleFonts.poppins(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,

@@ -1,6 +1,7 @@
 import '../../../core/config/api_config.dart';
 import '../../../core/models/api_models.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/utils/currency.dart';
 import '../../../core/utils/json_parse.dart';
 import 'models/catalog_models.dart';
 
@@ -32,7 +33,7 @@ class CarritoItemExtraModel {
   final double precioUnit;
   final double lineTotal;
 
-  String get label => '$nombre ×$cantidad (+${precioUnit.toStringAsFixed(0)})';
+  String get label => '$nombre ×$cantidad (+${formatUYU(precioUnit)})';
 }
 
 class CarritoItemModel {
@@ -104,11 +105,11 @@ class CarritoItemModel {
   final double extrasTotal;
   final List<CarritoItemExtraModel> extras;
 
-  String get lineTotalLabel => '\$${lineTotal.toStringAsFixed(0)}';
+  String get lineTotalLabel => formatUYU(lineTotal);
 
   String get imageUrl => ApiConfig.resolveImageUrl(imagen);
 
-  String get precioUnitLabel => '\$${precioUnit.toStringAsFixed(0)}';
+  String get precioUnitLabel => formatUYU(precioUnit);
 
   String get extrasSummary {
     if (extras.isEmpty) return '';
@@ -167,14 +168,18 @@ class PedidoPreviewModel {
     required this.descuento,
     required this.entregaPrecio,
     required this.total,
+    this.montoMinimo = 0,
+    this.cumpleMinimo = true,
   });
 
   factory PedidoPreviewModel.fromJson(Map<String, dynamic> json) {
     return PedidoPreviewModel(
       subtotal: parseJsonDouble(json['subtotal']),
-      descuento: parseJsonDouble(json['descuento']),
+      descuento: parseJsonDouble(json['descuentoMonto'] ?? json['descuento']),
       entregaPrecio: parseJsonDouble(json['entregaPrecio']),
       total: parseJsonDouble(json['total']),
+      montoMinimo: parseJsonDouble(json['montoMinimo']),
+      cumpleMinimo: json['cumpleMinimo'] != false,
     );
   }
 
@@ -182,6 +187,10 @@ class PedidoPreviewModel {
   final double descuento;
   final double entregaPrecio;
   final double total;
+  final double montoMinimo;
+  final bool cumpleMinimo;
+
+  bool get cumpleMontoMinimo => montoMinimo <= 0 || cumpleMinimo;
 }
 
 class PedidoLineItem {
@@ -270,7 +279,7 @@ class ClientePedidoModel {
   final bool valorada;
   final DateTime createdAt;
 
-  String get totalLabel => '\$${total.toStringAsFixed(0)}';
+  String get totalLabel => formatUYU(total);
 
   /// Imagen del producto (fallback a logo del comercio).
   String get imageUrl => ApiConfig.resolveImageUrl(
@@ -315,6 +324,7 @@ class ClientePedidoDetailModel extends ClientePedidoModel {
     required super.createdAt,
     this.lineItems = const [],
     this.direccion,
+    this.codigoConfirmacion,
   });
 
   factory ClientePedidoDetailModel.fromJson(Map<String, dynamic> json) {
@@ -349,11 +359,15 @@ class ClientePedidoDetailModel extends ClientePedidoModel {
       createdAt: base.createdAt,
       lineItems: lineItems,
       direccion: direccion?['direccion'] as String?,
+      codigoConfirmacion: json['codigoConfirmacion'] as String?,
     );
   }
 
   final List<PedidoLineItem> lineItems;
   final String? direccion;
+
+  /// Código que el comercio puede pedir al entregar (opcional).
+  final String? codigoConfirmacion;
 
   List<String> get items => lineItems.map((e) => e.label).toList();
 }
@@ -465,8 +479,8 @@ class ClienteRepository {
     required String metodoPago,
     required String tipoEntrega,
     int? direccionId,
-    double? entregaPrecio,
     int? cuponId,
+    String? cuponCodigo,
     String? notas,
     double? valorEfectivo,
   }) async {
@@ -477,8 +491,9 @@ class ClienteRepository {
         'metodoPago': metodoPago,
         'tipoEntrega': tipoEntrega,
         if (direccionId != null) 'direccionId': direccionId,
-        if (entregaPrecio != null) 'entregaPrecio': entregaPrecio,
         if (cuponId != null) 'cuponId': cuponId,
+        if (cuponCodigo != null && cuponCodigo.trim().isNotEmpty)
+          'cuponCodigo': cuponCodigo.trim(),
         if (notas != null && notas.trim().isNotEmpty) 'notas': notas.trim(),
         if (valorEfectivo != null) 'valorEfectivo': valorEfectivo,
       },
@@ -528,6 +543,15 @@ class ClienteRepository {
 
   Future<void> cancelarPedido(int id) async {
     await _api.patch('/pedidos/$id/cancelar', authenticated: true);
+  }
+
+  /// El cliente confirma que recibió el pedido (marca Entregado).
+  Future<ClientePedidoDetailModel> confirmarRecepcion(int id) async {
+    final json = await _api.patch(
+      '/pedidos/$id/confirmar-recepcion',
+      authenticated: true,
+    );
+    return ClientePedidoDetailModel.fromJson(json);
   }
 
   Future<List<DireccionModel>> getDirecciones() async {

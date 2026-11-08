@@ -20,6 +20,20 @@ class PromoAdSlide {
   final String? title;
   final String? subtitle;
   final String? linkUrl;
+
+  int? get comercioDestinationId {
+    final rawLink = linkUrl?.trim();
+    if (rawLink == null || rawLink.isEmpty) return null;
+    final uri = Uri.tryParse(rawLink);
+    final segments = uri?.pathSegments ?? rawLink.split('/');
+    for (var index = 0; index < segments.length - 1; index++) {
+      if (segments[index] == 'comercio' || segments[index] == 'comercios') {
+        final id = int.tryParse(segments[index + 1]);
+        if (id != null && id > 0) return id;
+      }
+    }
+    return null;
+  }
 }
 
 /// Defaults hasta que el admin configure banners.
@@ -57,11 +71,13 @@ class PromoAdsBanner extends StatefulWidget {
     this.slides,
     this.autoPlayInterval = const Duration(seconds: 4),
     this.height = 140,
+    this.onOpenComercio,
   });
 
   final List<PromoAdSlide>? slides;
   final Duration autoPlayInterval;
   final double height;
+  final ValueChanged<int>? onOpenComercio;
 
   @override
   State<PromoAdsBanner> createState() => _PromoAdsBannerState();
@@ -131,6 +147,7 @@ class _PromoAdsBannerState extends State<PromoAdsBanner> {
             onPageChanged: (i) => setState(() => _page = i),
             itemBuilder: (context, index) => _PromoAdSlideCard(
               slide: items[index],
+              onOpenComercio: widget.onOpenComercio,
             ),
           ),
         ),
@@ -159,12 +176,17 @@ class _PromoAdsBannerState extends State<PromoAdsBanner> {
 }
 
 class _PromoAdSlideCard extends StatelessWidget {
-  const _PromoAdSlideCard({required this.slide});
+  const _PromoAdSlideCard({
+    required this.slide,
+    this.onOpenComercio,
+  });
 
   final PromoAdSlide slide;
+  final ValueChanged<int>? onOpenComercio;
 
   @override
   Widget build(BuildContext context) {
+    final comercioId = slide.comercioDestinationId;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 2),
       decoration: BoxDecoration(
@@ -258,24 +280,29 @@ class _PromoAdSlideCard extends StatelessWidget {
                     ),
                   ],
                   const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.yellow,
+                  if (comercioId != null && onOpenComercio != null)
+                    InkWell(
+                      onTap: () => onOpenComercio!(comercioId),
                       borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      'Ver más',
-                      style: GoogleFonts.poppins(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.navy,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.yellow,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Ver más',
+                          style: GoogleFonts.poppins(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.navy,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),

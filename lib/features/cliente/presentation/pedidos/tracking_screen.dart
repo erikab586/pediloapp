@@ -25,7 +25,13 @@ class _ClienteTrackingScreenState extends State<ClienteTrackingScreen> {
   ClientePedidoDetailModel? _pedido;
   bool _loading = true;
   bool _repeating = false;
-  bool _openingRating = false;
+  bool _processingAction = false;
+
+  static const _receiptConfirmableStatuses = {
+    'Listo',
+    'En espera',
+    'Enviado',
+  };
   StreamSubscription<Map<String, dynamic>>? _estadoSub;
 
   static const _steps = [
@@ -143,16 +149,57 @@ class _ClienteTrackingScreenState extends State<ClienteTrackingScreen> {
     }
   }
 
-  Future<void> _confirmarRecepcion() async {
-    if (_openingRating) return;
-    setState(() => _openingRating = true);
+  Future<void> _openRating() async {
+    if (_processingAction) return;
+    setState(() => _processingAction = true);
     try {
       await context.push<bool>(
         '/cliente/pedidos/${widget.pedidoId}/valorar',
       );
       await _load();
     } finally {
-      if (mounted) setState(() => _openingRating = false);
+      if (mounted) setState(() => _processingAction = false);
+    }
+  }
+
+  Future<void> _marcarRecibido() async {
+    if (_processingAction) return;
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar recepción'),
+        content: const Text(
+          '¿Confirmás que recibiste el pedido? Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Todavía no'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sí, lo recibí'),
+          ),
+        ],
+      ),
+    );
+    if (confirmado != true || !mounted) return;
+    setState(() => _processingAction = true);
+    try {
+      await _repository.confirmarRecepcion(widget.pedidoId);
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('¡Gracias! Marcamos el pedido como entregado.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      await mostrarAlertaError(context, mensaje: mensajeErrorEspanol(e));
+    } finally {
+      if (mounted) setState(() => _processingAction = false);
     }
   }
 
@@ -173,6 +220,17 @@ class _ClienteTrackingScreenState extends State<ClienteTrackingScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Volver',
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/cliente/home');
+            }
+          },
+        ),
         title: Text(
           pedido != null ? 'Pedido #${pedido.id}' : 'Seguimiento',
           style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
@@ -367,18 +425,38 @@ class _ClienteTrackingScreenState extends State<ClienteTrackingScreen> {
                           ),
                           child: const Text('Cancelar pedido'),
                         ),
-                      if (!pedido.valorada &&
-                          const {
-                            'Listo',
-                            'En espera',
-                            'Enviado',
-                            'Entregado',
-                          }.contains(pedido.status)) ...[
+                      if (_receiptConfirmableStatuses
+                          .contains(pedido.status)) ...[
+                        const SizedBox(height: 16),
+                        FilledButton.icon(
+                          onPressed: _processingAction ? null : _marcarRecibido,
+                          icon: _processingAction
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.check_circle_outline),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.green,
+                            foregroundColor: AppColors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          label: Text(
+                            'Ya lo recibí',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (!pedido.valorada && pedido.status == 'Entregado') ...[
                         const SizedBox(height: 10),
                         FilledButton.icon(
-                          onPressed:
-                              _openingRating ? null : _confirmarRecepcion,
-                          icon: _openingRating
+                          onPressed: _processingAction ? null : _openRating,
+                          icon: _processingAction
                               ? const SizedBox(
                                   width: 18,
                                   height: 18,
@@ -393,7 +471,7 @@ class _ClienteTrackingScreenState extends State<ClienteTrackingScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
                           label: Text(
-                            'Confirmar recepción y calificar',
+                            'Calificar pedido',
                             style: GoogleFonts.poppins(
                                 fontWeight: FontWeight.w600),
                           ),

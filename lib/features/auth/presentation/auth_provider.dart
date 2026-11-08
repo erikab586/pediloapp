@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../core/models/api_models.dart';
@@ -10,7 +12,10 @@ class AuthProvider extends ChangeNotifier {
     AuthRepository? repository,
     AppModeStorage? modeStorage,
   })  : _repository = repository ?? AuthRepository(),
-        _modeStorage = modeStorage ?? AppModeStorage();
+        _modeStorage = modeStorage ?? AppModeStorage() {
+    // Si el refresh falla, la sesión ya no sirve: limpiar y volver al login.
+    _repository.apiClient.onUnauthorized = _handleSessionExpired;
+  }
 
   final AuthRepository _repository;
   final AppModeStorage _modeStorage;
@@ -140,6 +145,16 @@ class AuthProvider extends ChangeNotifier {
     _user = null;
     _loginNavigationPending = false;
     _appMode = AppMode.comprador;
+    notifyListeners();
+  }
+
+  /// El access token y el refresh token ya no son válidos.
+  void _handleSessionExpired() {
+    if (_user == null) return;
+    _user = null;
+    _loginNavigationPending = false;
+    _appMode = AppMode.comprador;
+    unawaited(_repository.clearLocalSession());
     notifyListeners();
   }
 

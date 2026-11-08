@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/currency.dart';
 import '../../../../core/utils/error_messages.dart';
 import '../../../../core/widgets/panel/form_widgets.dart';
 import '../../../auth/presentation/auth_provider.dart';
@@ -139,7 +140,7 @@ class _PromocionFormScreenState extends State<PromocionFormScreen> {
             _tipo == 'Porcentaje'
                 ? 'Ej: 20 = 20% de descuento'
                 : _tipo == 'Fijo'
-                    ? 'Ej: 100 = \$100 de descuento'
+                    ? 'Ej: 100 = ${formatUYU(100)} de descuento'
                     : 'Para 2x1 podés poner 0 o el precio de referencia',
             style: GoogleFonts.poppins(fontSize: 12, color: AppColors.gray500),
           ),

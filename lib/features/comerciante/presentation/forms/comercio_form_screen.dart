@@ -113,6 +113,7 @@ class _ComercioFormScreenState extends State<ComercioFormScreen> {
   late final TextEditingController _tiempoMinCtrl;
   late final TextEditingController _tiempoMaxCtrl;
   late final TextEditingController _montoMinCtrl;
+  late final TextEditingController _costoEnvioCtrl;
 
   int? _categoriaId;
   Uint8List? _logoBytes;
@@ -146,6 +147,13 @@ class _ComercioFormScreenState extends State<ComercioFormScreen> {
               : c.montoMinimo.toStringAsFixed(2))
           : '0',
     );
+    _costoEnvioCtrl = TextEditingController(
+      text: c != null && c.costoEnvio > 0
+          ? (c.costoEnvio == c.costoEnvio.roundToDouble()
+              ? c.costoEnvio.toInt().toString()
+              : c.costoEnvio.toStringAsFixed(2))
+          : '0',
+    );
     _categoriaId = c?.categoriaId ?? widget.categorias.firstOrNull?.id;
     _horarioAutomatico = c?.horarioAutomatico ?? false;
     _metodosPago = Set<String>.from(
@@ -173,6 +181,7 @@ class _ComercioFormScreenState extends State<ComercioFormScreen> {
     _tiempoMinCtrl.dispose();
     _tiempoMaxCtrl.dispose();
     _montoMinCtrl.dispose();
+    _costoEnvioCtrl.dispose();
     for (final h in _horarios.values) {
       h.dispose();
     }
@@ -223,6 +232,10 @@ class _ComercioFormScreenState extends State<ComercioFormScreen> {
           _montoMinCtrl.text.trim().replaceAll(',', '.'),
         ) ??
         0;
+    final costoEnvio = double.tryParse(
+          _costoEnvioCtrl.text.trim().replaceAll(',', '.'),
+        ) ??
+        0;
 
     if (tiempoMin != null && tiempoMax != null && tiempoMax < tiempoMin) {
       await mostrarAlertaError(
@@ -251,6 +264,7 @@ class _ComercioFormScreenState extends State<ComercioFormScreen> {
           tiempoEntregaMin: tiempoMin,
           tiempoEntregaMax: tiempoMax,
           montoMinimo: montoMin,
+          costoEnvio: costoEnvio,
           logoBytes: _logoBytes,
           portadaBytes: _portadaBytes,
         );
@@ -268,6 +282,7 @@ class _ComercioFormScreenState extends State<ComercioFormScreen> {
           tiempoEntregaMin: tiempoMin,
           tiempoEntregaMax: tiempoMax,
           montoMinimo: montoMin,
+          costoEnvio: costoEnvio,
           logoBytes: _logoBytes,
           portadaBytes: _portadaBytes,
         );
@@ -414,6 +429,20 @@ class _ComercioFormScreenState extends State<ComercioFormScreen> {
                   PanelTextField(
                     label: 'Monto mínimo de envío / pedido',
                     controller: _montoMinCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Requerido';
+                      final n = double.tryParse(v.replaceAll(',', '.'));
+                      if (n == null || n < 0) return 'Monto inválido';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 14),
+                  PanelTextField(
+                    label: 'Costo de envío (0 = gratis)',
+                    controller: _costoEnvioCtrl,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),

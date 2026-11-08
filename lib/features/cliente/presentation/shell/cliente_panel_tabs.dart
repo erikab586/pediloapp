@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/storage/app_mode_storage.dart';
+import '../../../../core/utils/currency.dart';
 import '../../../../core/utils/error_messages.dart';
 import '../../../../core/widgets/panel/panel_widgets.dart';
 import '../../../../core/widgets/skeleton.dart';
@@ -526,8 +527,6 @@ class _ClienteCarritoTabState extends State<ClienteCarritoTab> {
   /// `delivery` | `retiro`
   String _entrega = 'delivery';
 
-  static const double _envioDefault = 50;
-
   @override
   void initState() {
     super.initState();
@@ -612,12 +611,19 @@ class _ClienteCarritoTabState extends State<ClienteCarritoTab> {
   double get _envioFee {
     if (_entrega != 'delivery') return 0;
     final api = _carrito?.resumen.entregaPrecio ?? 0;
-    return api > 0 ? api : _envioDefault;
+    if (api > 0) return api;
+    // El comercio define el costo; 0 = envío gratis.
+    return _comercio?.costoEnvio ?? 0;
   }
 
   double get _subtotal => _carrito?.resumen.subtotal ?? 0;
 
   double get _total => _subtotal + _envioFee;
+
+  double get _montoMinimo =>
+      _entrega == 'delivery' ? (_comercio?.montoMinimo ?? 0) : 0;
+
+  bool get _cumpleMinimo => _montoMinimo <= 0 || _subtotal >= _montoMinimo;
 
   bool get _offersDelivery {
     final tipos = _comercio?.tiposEntrega ?? const <String>[];
@@ -756,12 +762,46 @@ class _ClienteCarritoTabState extends State<ClienteCarritoTab> {
                                   ),
                                 ),
                                 const SizedBox(height: 12),
+                                if (!_cumpleMinimo) ...[
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFF7E6),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: const Color(0xFFFFD98C),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.info_outline_rounded,
+                                          size: 18,
+                                          color: Color(0xFF8A6100),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'El pedido mínimo para envío es '
+                                            '${_comercio?.montoMinimoLabel ?? ''}. '
+                                            'Agregá más productos o elegí retiro.',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 12,
+                                              color: const Color(0xFF8A6100),
+                                              height: 1.35,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                ],
                                 _DeliveryMethodCard(
                                   entrega: _entrega,
                                   showRetiro: _offersRetiro,
                                   showDelivery: _offersDelivery,
-                                  envioLabel:
-                                      '\$${_envioFee.toStringAsFixed(0)}',
+                                  envioLabel: formatUYU(_envioFee),
                                   onChanged: (v) =>
                                       setState(() => _entrega = v),
                                 ),
@@ -779,11 +819,12 @@ class _ClienteCarritoTabState extends State<ClienteCarritoTab> {
                     width: double.infinity,
                     height: 52,
                     child: FilledButton(
-                      onPressed: carrito?.resumen.comercioId == null
-                          ? null
-                          : () => widget.onGoCheckout(
-                                carrito!.resumen.comercioId!,
-                              ),
+                      onPressed:
+                          carrito?.resumen.comercioId == null || !_cumpleMinimo
+                              ? null
+                              : () => widget.onGoCheckout(
+                                    carrito!.resumen.comercioId!,
+                                  ),
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.yellow,
                         foregroundColor: AppColors.navy,
@@ -1002,16 +1043,16 @@ class _CartSummaryCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _moneyRow('Subtotal', '\$${subtotal.toStringAsFixed(0)}'),
+          _moneyRow('Subtotal', formatUYU(subtotal)),
           const SizedBox(height: 10),
-          _moneyRow('Envío', '\$${envio.toStringAsFixed(0)}'),
+          _moneyRow('Envío', formatUYU(envio)),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Divider(height: 1, color: Color(0xFFEEEEEE)),
           ),
           _moneyRow(
             'Total',
-            '\$${total.toStringAsFixed(0)}',
+            formatUYU(total),
             bold: true,
             larger: true,
           ),
@@ -1089,7 +1130,7 @@ class _DeliveryMethodCard extends StatelessWidget {
               selected: entrega == 'delivery',
               title: 'Delivery',
               subtitle: '30–40 min',
-              trailing: entrega == 'delivery' ? envioLabel : '\$50',
+              trailing: envioLabel,
               onTap: () => onChanged('delivery'),
             ),
         ],

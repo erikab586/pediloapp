@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/analytics/app_analytics.dart';
-import '../../../../core/network/socket_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/currency.dart';
 import '../../../../core/utils/promo_pricing.dart';
 import '../../../../core/utils/rubro_copy.dart';
 import '../../../../core/widgets/skeleton.dart';
@@ -37,6 +38,10 @@ class _ComercioDetailScreenState extends State<ComercioDetailScreen> {
   int _tabIndex = 0;
   int _cartCount = 0;
   double _cartTotal = 0;
+  bool _isFavorite = false;
+  bool _favoriteLoading = true;
+  bool _favoriteStateLoaded = false;
+  bool _favoriteUpdating = false;
 
   double? get _avgRating {
     if (_valoraciones.isEmpty) return null;
@@ -51,6 +56,7 @@ class _ComercioDetailScreenState extends State<ComercioDetailScreen> {
     _repository = CatalogRepository(api);
     _clienteRepository = ClienteRepository(api);
     _load();
+    _loadFavoriteState();
     _loadCartCount();
   }
 
@@ -131,17 +137,80 @@ class _ComercioDetailScreenState extends State<ComercioDetailScreen> {
     }
   }
 
-  Future<void> _toggleFavorito() async {
+  Future<void> _loadFavoriteState() async {
+    if (mounted && !_favoriteLoading) {
+      setState(() => _favoriteLoading = true);
+    }
     try {
-      await _clienteRepository.toggleFavoritoComercio(widget.comercioId);
+      final favoritos = await _clienteRepository.getFavoritosComercios();
       if (!mounted) return;
+      setState(() {
+        _isFavorite =
+            favoritos.any((comercio) => comercio.id == widget.comercioId);
+        _favoriteStateLoaded = true;
+        _favoriteLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _favoriteLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Favorito actualizado'),
+        SnackBar(
+          content: Text('No se pudo cargar el favorito: $e'),
           behavior: SnackBarBehavior.floating,
         ),
       );
-    } catch (_) {}
+    }
+  }
+
+  Future<void> _toggleFavorito() async {
+    if (_favoriteLoading || _favoriteUpdating) return;
+    if (!_favoriteStateLoaded) {
+      await _loadFavoriteState();
+      return;
+    }
+    setState(() => _favoriteUpdating = true);
+    try {
+      await _clienteRepository.toggleFavoritoComercio(widget.comercioId);
+      if (!mounted) return;
+      setState(() => _isFavorite = !_isFavorite);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _isFavorite ? 'Agregado a favoritos' : 'Quitado de favoritos',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo actualizar el favorito: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _favoriteUpdating = false);
+    }
+  }
+
+  Future<void> _shareComercio() async {
+    final comercio = _comercio;
+    if (comercio == null) return;
+    try {
+      await Share.share(
+        '¡Mirá ${comercio.name} en Pedilo!',
+        subject: comercio.name,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo compartir el comercio: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   Future<void> _openChat() async {
@@ -338,7 +407,7 @@ class _ComercioDetailScreenState extends State<ComercioDetailScreen> {
     }
 
     final comercio = _comercio!;
-    final rating = _avgRating ?? (4.6 + (comercio.id % 5) * 0.05);
+    final rating = _avgRating;
 
     return Scaffold(
       backgroundColor: AppColors.white,
@@ -352,7 +421,10 @@ class _ComercioDetailScreenState extends State<ComercioDetailScreen> {
                     comercio: comercio,
                     rating: rating,
                     reviewsCount: _valoraciones.length,
+                    isFavorite: _isFavorite,
+                    favoriteLoading: _favoriteLoading || _favoriteUpdating,
                     onFavorite: _toggleFavorito,
+                    onShare: _shareComercio,
                     onChat: _openChat,
                   ),
                 ),
@@ -628,14 +700,20 @@ class _StoreHeader extends StatelessWidget {
     required this.comercio,
     required this.rating,
     required this.reviewsCount,
+    required this.isFavorite,
+    required this.favoriteLoading,
     this.onFavorite,
+    this.onShare,
     this.onChat,
   });
 
   final ComercioModel comercio;
-  final double rating;
+  final double? rating;
   final int reviewsCount;
+  final bool isFavorite;
+  final bool favoriteLoading;
   final VoidCallback? onFavorite;
+  final VoidCallback? onShare;
   final VoidCallback? onChat;
 
   static const _coverHeight = 220.0;
@@ -727,14 +805,31 @@ class _StoreHeader extends StatelessWidget {
                                 ),
                               ),
                             IconButton(
-                              onPressed: onFavorite,
-                              icon: const Icon(
-                                Icons.favorite_border_rounded,
-                                color: Colors.white,
-                              ),
+                              onPressed: favoriteLoading ? null : onFavorite,
+                              tooltip: isFavorite
+                                  ? 'Quitar de favoritos'
+                                  : 'Agregar a favoritos',
+                              icon: favoriteLoading
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Icon(
+                                      isFavorite
+                                          ? Icons.favorite_rounded
+                                          : Icons.favorite_border_rounded,
+                                      color: isFavorite
+                                          ? AppColors.yellow
+                                          : Colors.white,
+                                    ),
                             ),
                             IconButton(
-                              onPressed: () {},
+                              onPressed: onShare,
+                              tooltip: 'Compartir comercio',
                               icon: const Icon(
                                 Icons.share_outlined,
                                 color: Colors.white,
@@ -808,35 +903,36 @@ class _StoreHeader extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.green,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.star_rounded,
-                          size: 14,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          rating.toStringAsFixed(1),
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
+                  if (rating != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.green,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.star_rounded,
+                            size: 14,
                             color: Colors.white,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 2),
+                          Text(
+                            rating!.toStringAsFixed(1),
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
                   if (reviewsCount > 0) ...[
                     const SizedBox(width: 6),
                     Padding(
@@ -1012,7 +1108,7 @@ class _StickyCartBar extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '\$${total.toStringAsFixed(0)}',
+                    formatUYU(total),
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
@@ -1162,7 +1258,7 @@ class _MenuItemCard extends StatelessWidget {
                           Row(
                             children: [
                               Text(
-                                '\$${priced.precioUnitario.toStringAsFixed(0)}',
+                                formatUYU(priced.precioUnitario),
                                 style: GoogleFonts.poppins(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,
@@ -1171,7 +1267,7 @@ class _MenuItemCard extends StatelessWidget {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                '\$${priced.precioOriginal.toStringAsFixed(0)}',
+                                formatUYU(priced.precioOriginal),
                                 style: GoogleFonts.poppins(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,

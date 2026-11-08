@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import '../../../core/config/api_config.dart';
 import '../../../core/models/api_models.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/utils/currency.dart';
 import '../../../core/utils/json_parse.dart';
 import '../../cliente/data/models/catalog_models.dart';
 
@@ -78,11 +79,10 @@ class PedidoDetailModel {
   final List<PedidoItemModel> items;
   final DateTime createdAt;
 
-  String get totalLabel => '\$${total.toStringAsFixed(0)}';
+  String get totalLabel => formatUYU(total);
 
-  String? get valorEfectivoLabel => valorEfectivo == null
-      ? null
-      : '\$${valorEfectivo!.toStringAsFixed(0)}';
+  String? get valorEfectivoLabel =>
+      valorEfectivo == null ? null : formatUYU(valorEfectivo!);
 }
 
 class PedidoClienteModel {
@@ -139,18 +139,15 @@ class PedidoItemModel {
     final precioRaw = json['precioUnit'] ?? json['precio'];
     final extrasRaw = json['extras'];
     final extras = extrasRaw is List
-        ? extrasRaw
-            .whereType<Map>()
-            .map((e) {
-              final m = Map<String, dynamic>.from(e);
-              final nombre =
-                  m['extraNombre'] as String? ?? m['extra_nombre'] as String? ?? 'Extra';
-              final cantidad = int.tryParse('${m['cantidad'] ?? 1}') ?? 1;
-              final precio =
-                  double.tryParse('${m['precio'] ?? 0}') ?? 0;
-              return '$nombre ×$cantidad (+${precio.toStringAsFixed(0)})';
-            })
-            .toList()
+        ? extrasRaw.whereType<Map>().map((e) {
+            final m = Map<String, dynamic>.from(e);
+            final nombre = m['extraNombre'] as String? ??
+                m['extra_nombre'] as String? ??
+                'Extra';
+            final cantidad = int.tryParse('${m['cantidad'] ?? 1}') ?? 1;
+            final precio = double.tryParse('${m['precio'] ?? 0}') ?? 0;
+            return '$nombre ×$cantidad (+${formatUYU(precio)})';
+          }).toList()
         : <String>[];
     final base = double.tryParse(precioRaw?.toString() ?? '0') ?? 0;
     final cantidad = json['cantidad'] as int? ?? 1;
@@ -203,7 +200,7 @@ class PedidoItemModel {
   }
 
   double get total => subtotal ?? (precioUnit * cantidad);
-  String get totalLabel => '\$${total.toStringAsFixed(0)}';
+  String get totalLabel => formatUYU(total);
 
   String get extrasSummary => extras.join(' · ');
 }
@@ -271,15 +268,13 @@ class PedidoModel {
       clienteNombre: usuario?['name'] as String?,
       comercioNombre: comercio?['name'] as String?,
       itemsResumen: (json['productosResumen'] as String?) ??
-          items
-              .map((item) {
-                final map = item as Map<String, dynamic>;
-                final producto = map['producto'] as Map<String, dynamic>?;
-                final nombre = producto?['nombre'] as String? ?? 'Producto';
-                final qty = map['cantidad'] as int? ?? 1;
-                return '$nombre x$qty';
-              })
-              .join(', '),
+          items.map((item) {
+            final map = item as Map<String, dynamic>;
+            final producto = map['producto'] as Map<String, dynamic>?;
+            final nombre = producto?['nombre'] as String? ?? 'Producto';
+            final qty = map['cantidad'] as int? ?? 1;
+            return '$nombre x$qty';
+          }).join(', '),
       imagen: imagen,
       createdAt: DateTime.tryParse(
             (json['fechaPedido'] ?? json['createdAt']) as String? ?? '',
@@ -299,7 +294,7 @@ class PedidoModel {
   final String? comercioNombre;
   final DateTime createdAt;
 
-  String get totalLabel => '\$${total.toStringAsFixed(0)}';
+  String get totalLabel => formatUYU(total);
 
   String get imageUrl => ApiConfig.resolveImageUrl(imagen);
 }
@@ -593,8 +588,7 @@ class ComercianteRepository {
         '/estadisticas/comercio/$comercioId/top-productos',
         authenticated: true,
       );
-      topProductos =
-          topRows.map(TopProductoStat.fromJson).toList();
+      topProductos = topRows.map(TopProductoStat.fromJson).toList();
     } catch (_) {}
 
     try {
@@ -1231,7 +1225,8 @@ class ComboModel {
     final items = (json['items'] as List<dynamic>?) ?? const [];
     return ComboModel(
       id: json['id'] as int,
-      comercioId: json['comercioId'] as int? ?? json['comercio_id'] as int? ?? 0,
+      comercioId:
+          json['comercioId'] as int? ?? json['comercio_id'] as int? ?? 0,
       nombre: json['nombre'] as String,
       descripcion: json['descripcion'] as String?,
       precio: double.parse(json['precio'].toString()),
@@ -1255,5 +1250,5 @@ class ComboModel {
   final List<ComboItemModel> items;
 
   String get imageUrl => ApiConfig.resolveImageUrl(imagen);
-  String get precioLabel => '\$${precio.toStringAsFixed(0)}';
+  String get precioLabel => formatUYU(precio);
 }

@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/network/socket_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/currency.dart';
 import '../../../auth/presentation/auth_provider.dart';
 import '../../data/comerciante_repository.dart';
 
@@ -48,8 +49,8 @@ class _PedidoDetailScreenState extends State<PedidoDetailScreen> {
 
   void _listenEstado() {
     _estadoSub = PedidosSocket.instance.onEstadoPedido.listen((data) {
-      final ordenId = data['ordenId'] as int? ??
-          (data['orden'] as Map?)?['id'] as int?;
+      final ordenId =
+          data['ordenId'] as int? ?? (data['orden'] as Map?)?['id'] as int?;
       if (ordenId == null || ordenId != widget.pedidoId) return;
 
       // Refrescamos el pedido para tener todos los datos sincronizados
@@ -109,9 +110,7 @@ class _PedidoDetailScreenState extends State<PedidoDetailScreen> {
         backgroundColor: AppColors.navy,
         foregroundColor: AppColors.white,
         title: Text(
-          _pedido == null
-              ? 'Pedido'
-              : 'Pedido #${_pedido!.id}',
+          _pedido == null ? 'Pedido' : 'Pedido #${_pedido!.id}',
           style: GoogleFonts.poppins(
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -428,7 +427,7 @@ class _ItemsCard extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '\$${it.precioUnit.toStringAsFixed(0)} c/u',
+                          '${formatUYU(it.precioUnit)} c/u',
                           style: GoogleFonts.poppins(
                             fontSize: 11,
                             color: AppColors.gray500,
@@ -633,12 +632,10 @@ class _ActionsRow extends StatelessWidget {
               child: FilledButton.icon(
                 onPressed: updating ? null : () => onAction(a.status),
                 style: FilledButton.styleFrom(
-                  backgroundColor: a.destructive
-                      ? const Color(0xFFFEE2E2)
-                      : a.color,
-                  foregroundColor: a.destructive
-                      ? const Color(0xFFEF4444)
-                      : AppColors.white,
+                  backgroundColor:
+                      a.destructive ? const Color(0xFFFEE2E2) : a.color,
+                  foregroundColor:
+                      a.destructive ? const Color(0xFFEF4444) : AppColors.white,
                   padding: const EdgeInsets.symmetric(
                     vertical: 12,
                     horizontal: 16,
@@ -671,36 +668,37 @@ class _ActionsRow extends StatelessWidget {
         tipoEntrega.toLowerCase().contains('domicilio');
 
     return switch (status) {
-        'Pendiente' => [
-            _ActionData('Aceptar', 'Aceptado', AppColors.green),
-            _ActionData('Rechazar', 'Cancelado', const Color(0xFFEF4444),
-                destructive: true),
-          ],
-        'Aceptado' => [
-            _ActionData('Marcar preparando', 'Preparando', AppColors.blue),
-            _ActionData('Cancelar', 'Cancelado', const Color(0xFFEF4444),
-                destructive: true),
-          ],
-        'Preparando' => [
-            _ActionData('Marcar listo', 'Listo', AppColors.blue),
-            _ActionData('Cancelar', 'Cancelado', const Color(0xFFEF4444),
-                destructive: true),
-          ],
-        'Listo' => [
-            if (isDelivery)
-              _ActionData('Marcar enviado', 'Enviado', AppColors.blue),
-            _ActionData('Marcar entregado', 'Entregado', AppColors.green),
-          ],
-        'Enviado' => [
-            _ActionData('Marcar entregado', 'Entregado', AppColors.green),
-          ],
-        _ => [],
-      };
+      'Pendiente' => [
+          _ActionData('Aceptar', 'Aceptado', AppColors.green),
+          _ActionData('Rechazar', 'Cancelado', const Color(0xFFEF4444),
+              destructive: true),
+        ],
+      'Aceptado' => [
+          _ActionData('Marcar preparando', 'Preparando', AppColors.blue),
+          _ActionData('Cancelar', 'Cancelado', const Color(0xFFEF4444),
+              destructive: true),
+        ],
+      'Preparando' => [
+          _ActionData('Marcar listo', 'Listo', AppColors.blue),
+          _ActionData('Cancelar', 'Cancelado', const Color(0xFFEF4444),
+              destructive: true),
+        ],
+      'Listo' => [
+          if (isDelivery)
+            _ActionData('Marcar enviado', 'Enviado', AppColors.blue),
+          _ActionData('Marcar entregado', 'Entregado', AppColors.green),
+        ],
+      'Enviado' => [
+          _ActionData('Marcar entregado', 'Entregado', AppColors.green),
+        ],
+      _ => [],
+    };
   }
 }
 
 class _ActionData {
-  const _ActionData(this.label, this.status, this.color, {this.destructive = false});
+  const _ActionData(this.label, this.status, this.color,
+      {this.destructive = false});
   final String label;
   final String status;
   final Color color;

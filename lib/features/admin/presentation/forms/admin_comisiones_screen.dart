@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/currency.dart';
 import '../../../../core/utils/error_messages.dart';
 import '../../data/admin_repository.dart';
 
@@ -104,11 +105,11 @@ class _AdminComisionesScreenState extends State<AdminComisionesScreen> {
                   const SizedBox(height: 16),
                   _SummaryRow(
                     label: 'Ventas totales acumuladas',
-                    value: '\$${ventas.toStringAsFixed(0)}',
+                    value: formatUYU(ventas),
                   ),
                   _SummaryRow(
                     label: 'Comisiones generadas',
-                    value: '\$${comision.toStringAsFixed(0)}',
+                    value: formatUYU(comision),
                     highlight: true,
                   ),
                   _SummaryRow(

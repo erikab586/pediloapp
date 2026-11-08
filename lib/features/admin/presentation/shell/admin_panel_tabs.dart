@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/utils/currency.dart';
+
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/panel/panel_widgets.dart';
 import '../../../../core/widgets/pedilo_logo.dart';
@@ -145,7 +147,7 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
                       label: 'Pedidos totales',
                     ),
                     StatCardData(
-                      value: _stats?.ventasLabel ?? '\$0',
+                      value: _stats?.ventasLabel ?? formatUYU(0),
                       label: 'Ventas totales',
                     ),
                     StatCardData(
@@ -205,7 +207,8 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
                   child: EmptyPanelState(
                     icon: Icons.store_outlined,
                     title: 'Sin datos de ventas',
-                    subtitle: 'Los top comercios aparecerán cuando haya pedidos.',
+                    subtitle:
+                        'Los top comercios aparecerán cuando haya pedidos.',
                   ),
                 ),
               )
@@ -388,7 +391,8 @@ class _AdminComerciosTabState extends State<AdminComerciosTab> {
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
-              backgroundColor: aprobar ? AppColors.green : const Color(0xFFEF4444),
+              backgroundColor:
+                  aprobar ? AppColors.green : const Color(0xFFEF4444),
               foregroundColor: AppColors.white,
             ),
             child: Text(aprobar ? 'Aprobar' : 'Suspender'),
@@ -426,8 +430,7 @@ class _AdminComerciosTabState extends State<AdminComerciosTab> {
       await mostrarAlertaError(
         context,
         titulo: 'Sin categorías',
-        mensaje:
-            'Primero creá al menos una categoría en Config → Categorías.',
+        mensaje: 'Primero creá al menos una categoría en Config → Categorías.',
       );
       return;
     }
@@ -813,7 +816,8 @@ class _AdminUsuariosTabState extends State<AdminUsuariosTab> {
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
-              backgroundColor: activo ? AppColors.green : const Color(0xFFEF4444),
+              backgroundColor:
+                  activo ? AppColors.green : const Color(0xFFEF4444),
               foregroundColor: AppColors.white,
             ),
             child: Text(activo ? 'Reactivar' : 'Suspender'),
@@ -1180,7 +1184,7 @@ class _AdminReportesTabState extends State<AdminReportesTab> {
                       StatGrid(
                         cards: [
                           StatCardData(
-                            value: report?.ventasPeriodoLabel ?? '\$0',
+                            value: report?.ventasPeriodoLabel ?? formatUYU(0),
                             label: 'Ventas totales',
                             highlight: true,
                           ),
@@ -1189,8 +1193,7 @@ class _AdminReportesTabState extends State<AdminReportesTab> {
                             label: 'Pedidos',
                           ),
                           StatCardData(
-                            value:
-                                '\$${(report?.ticketPeriodo ?? 0).toStringAsFixed(0)}',
+                            value: formatUYU(report?.ticketPeriodo ?? 0),
                             label: 'Ticket promedio',
                           ),
                           StatCardData(
@@ -1259,7 +1262,7 @@ class _AdminReportesTabState extends State<AdminReportesTab> {
                                     rank: e.key + 1,
                                     title: e.value.nombre,
                                     subtitle:
-                                        '${e.value.cantidadVendida} uds · \$${e.value.total.toStringAsFixed(0)}',
+                                        '${e.value.cantidadVendida} uds · ${formatUYU(e.value.total)}',
                                   ),
                                 )
                                 .toList(),
@@ -1275,8 +1278,7 @@ class _AdminReportesTabState extends State<AdminReportesTab> {
                                 .map(
                                   (m) => _SummaryLine(
                                     label: m.metodo,
-                                    value:
-                                        '${m.cantidad} (${m.porcentaje}%)',
+                                    value: '${m.cantidad} (${m.porcentaje}%)',
                                   ),
                                 )
                                 .toList(),
@@ -1296,7 +1298,7 @@ class _AdminReportesTabState extends State<AdminReportesTab> {
                                     rank: e.key + 1,
                                     title: e.value.nombre,
                                     subtitle:
-                                        '${e.value.pedidos} pedidos · \$${e.value.totalGastado.toStringAsFixed(0)}',
+                                        '${e.value.pedidos} pedidos · ${formatUYU(e.value.totalGastado)}',
                                   ),
                                 )
                                 .toList(),
@@ -1312,7 +1314,7 @@ class _AdminReportesTabState extends State<AdminReportesTab> {
                             _SummaryLine(
                               label: 'Total comisiones',
                               value:
-                                  '\$${(report?.comisionesGeneradas ?? 0).toStringAsFixed(0)}',
+                                  formatUYU(report?.comisionesGeneradas ?? 0),
                               bold: true,
                             ),
                             _SummaryLine(
@@ -1399,8 +1401,7 @@ class _RankRow extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 14,
-            backgroundColor:
-                rank == 1 ? AppColors.yellow : AppColors.cream,
+            backgroundColor: rank == 1 ? AppColors.yellow : AppColors.cream,
             child: Text(
               '$rank',
               style: GoogleFonts.poppins(
@@ -1672,7 +1673,8 @@ class _ConfigSection extends StatelessWidget {
                           color: AppColors.gray500,
                         ),
                       ),
-                trailing: const Icon(Icons.chevron_right, color: AppColors.gray400),
+                trailing:
+                    const Icon(Icons.chevron_right, color: AppColors.gray400),
                 onTap: item.onTap,
               ),
             )

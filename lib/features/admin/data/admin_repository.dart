@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import '../../../core/network/api_client.dart';
+import '../../../core/utils/currency.dart';
 import '../../../core/utils/json_parse.dart';
 import '../../cliente/data/models/catalog_models.dart';
 
@@ -90,9 +91,7 @@ class AdminComercioModel extends ComercioModel {
       estaAbierto: parseJsonBool(json['estaAbierto']),
       categoriaId: json['categoriaId'] != null
           ? parseJsonInt(json['categoriaId'])
-          : (categoria?['id'] != null
-              ? parseJsonInt(categoria!['id'])
-              : null),
+          : (categoria?['id'] != null ? parseJsonInt(categoria!['id']) : null),
       categoriaNombre: categoria?['nombreCategoria'] as String?,
       aprobado: isPublic,
       estatus: estatus,
@@ -125,8 +124,7 @@ class AdminComercioModel extends ComercioModel {
 
   String get estatusValue => estatus ?? 'pendiente';
 
-  bool get isPublic =>
-      estatusValue == 'aprobado' || estatusValue == 'activo';
+  bool get isPublic => estatusValue == 'aprobado' || estatusValue == 'activo';
 
   bool get canAprobar =>
       estatusValue == 'pendiente' ||
@@ -174,7 +172,7 @@ class GlobalStatsModel {
   final double ticketPromedio;
   final List<TopComercioStat> topComercios;
 
-  String get ventasLabel => '\$${ventasTotales.toStringAsFixed(0)}';
+  String get ventasLabel => formatUYU(ventasTotales);
 }
 
 class TopComercioStat {
@@ -196,7 +194,7 @@ class TopComercioStat {
   final String nombre;
   final double total;
 
-  String get totalLabel => '\$${total.toStringAsFixed(0)}';
+  String get totalLabel => formatUYU(total);
 }
 
 /// Porcentaje de comisión de plataforma sobre ventas (sin endpoint dedicado).
@@ -230,7 +228,7 @@ class AdminReportModel {
   double get comisionesGeneradas =>
       ventasPeriodo * kAdminComisionPorcentaje / 100;
 
-  String get ventasPeriodoLabel => '\$${ventasPeriodo.toStringAsFixed(0)}';
+  String get ventasPeriodoLabel => formatUYU(ventasPeriodo);
 }
 
 class DailyStatModel {
@@ -404,9 +402,9 @@ class CuponModel {
 
   String get valorLabel => switch (tipo) {
         'Porcentaje' => '${valor.toStringAsFixed(0)}%',
-        'Fijo' => '\$${valor.toStringAsFixed(0)}',
+        'Fijo' => formatUYU(valor),
         'Envio' => 'Envío gratis',
-        _ => '\$${valor.toStringAsFixed(0)}',
+        _ => formatUYU(valor),
       };
 }
 
@@ -495,10 +493,8 @@ class AdminRepository {
 
     return AdminReportModel(
       stats: results[0] as GlobalStatsModel,
-      ventasPeriodo:
-          double.tryParse(totales['ventas']?.toString() ?? '0') ?? 0,
-      pedidosPeriodo:
-          int.tryParse(totales['pedidos']?.toString() ?? '0') ?? 0,
+      ventasPeriodo: double.tryParse(totales['ventas']?.toString() ?? '0') ?? 0,
+      pedidosPeriodo: int.tryParse(totales['pedidos']?.toString() ?? '0') ?? 0,
       ticketPeriodo:
           double.tryParse(totales['ticketPromedio']?.toString() ?? '0') ?? 0,
       series: parseJsonMapList(seriesJson['series'])
@@ -510,8 +506,7 @@ class AdminRepository {
       topCategorias: parseJsonMapList(topCategoriasJson['items'])
           .map(TopCategoriaStat.fromJson)
           .toList(),
-      cancelaciones:
-          CancelacionesStat.fromJson(cancelacionesJson),
+      cancelaciones: CancelacionesStat.fromJson(cancelacionesJson),
       clientesFrecuentes: parseJsonMapList(clientesJson['items'])
           .map(ClienteFrecuenteStat.fromJson)
           .toList(),

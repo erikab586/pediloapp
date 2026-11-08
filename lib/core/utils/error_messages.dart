@@ -49,6 +49,7 @@ Future<void> mostrarAlertaError(
   required String mensaje,
   String titulo = 'Error',
 }) {
+  if (errorDeSesionExpirada(mensaje)) return Future<void>.value();
   return showDialog<void>(
     context: context,
     builder: (ctx) => AlertDialog(
@@ -63,3 +64,6 @@ Future<void> mostrarAlertaError(
     ),
   );
 }
+
+bool errorDeSesionExpirada(String mensaje) =>
+    mensaje == 'Tu sesión expiró. Volvé a iniciar sesión.';

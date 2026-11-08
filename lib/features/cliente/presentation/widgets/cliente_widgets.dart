@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/currency.dart';
 import '../../data/catalog_mock_data.dart';
 import '../../data/models/catalog_models.dart';
 
@@ -320,16 +321,13 @@ class ComercioMarketplaceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final logoUrl = comercio.logoUrl.isNotEmpty
-        ? comercio.logoUrl
-        : comercio.imageUrl;
-    final displayRating = rating ?? 4.6 + (comercio.id % 5) * 0.05;
-    final displayReviews = reviewCount ?? 120 + (comercio.id * 53) % 800;
+    final logoUrl =
+        comercio.logoUrl.isNotEmpty ? comercio.logoUrl : comercio.imageUrl;
     final eta = etaLabel ?? comercio.etaLabel ?? _etaFor(comercio.id);
     final minLabel = minAmount != null
         ? '\$$minAmount'
         : (comercio.montoMinimoLabel ??
-            '\$${150 + (comercio.id % 4) * 50}');
+            formatUYU(150 + (comercio.id % 4) * 50));
     final payment = 'POS';
     final abierto = comercio.estaAbierto;
 
@@ -387,33 +385,37 @@ class ComercioMarketplaceTile extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.star_border_rounded,
-                          size: 17,
-                          color: AppColors.gray500,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          displayRating.toStringAsFixed(1),
-                          style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.navy,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '($displayReviews)',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
+                    if (rating != null) ...[
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.star_border_rounded,
+                            size: 17,
                             color: AppColors.gray500,
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
+                          const SizedBox(width: 4),
+                          Text(
+                            rating!.toStringAsFixed(1),
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.navy,
+                            ),
+                          ),
+                          if (reviewCount != null && reviewCount! > 0) ...[
+                            const SizedBox(width: 4),
+                            Text(
+                              '($reviewCount)',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: AppColors.gray500,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                    ],
                     _MarketplaceDetailRow(
                       icon: Icons.credit_card_outlined,
                       child: Text(
@@ -591,7 +593,6 @@ class StoreCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final abierto = comercio.estaAbierto;
-    final displayRating = rating ?? 4.6 + (comercio.id % 5) * 0.05;
     final eta = etaLabel ?? comercio.etaLabel ?? '25-40 min';
 
     return SizedBox(
@@ -621,10 +622,26 @@ class StoreCard extends StatelessWidget {
                                 BlendMode.multiply,
                               )
                             : const ColorFilter.matrix(<double>[
-                                0.2126, 0.7152, 0.0722, 0, 0,
-                                0.2126, 0.7152, 0.0722, 0, 0,
-                                0.2126, 0.7152, 0.0722, 0, 0,
-                                0, 0, 0, 1, 0,
+                                0.2126,
+                                0.7152,
+                                0.0722,
+                                0,
+                                0,
+                                0.2126,
+                                0.7152,
+                                0.0722,
+                                0,
+                                0,
+                                0.2126,
+                                0.7152,
+                                0.0722,
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                1,
+                                0,
                               ]),
                         child: _StoreImage(
                           url: comercio.imageUrl.isNotEmpty
@@ -643,11 +660,12 @@ class StoreCard extends StatelessWidget {
                           right: 8,
                           child: _PromoChip(label: promoBadge!),
                         ),
-                      Positioned(
-                        bottom: 8,
-                        right: 8,
-                        child: _RatingChip(rating: displayRating),
-                      ),
+                      if (rating != null)
+                        Positioned(
+                          bottom: 8,
+                          right: 8,
+                          child: _RatingChip(rating: rating!),
+                        ),
                     ],
                   ),
                 ),

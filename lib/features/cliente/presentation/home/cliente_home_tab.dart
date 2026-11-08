@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/currency.dart';
 import '../../../../core/utils/rubro_copy.dart';
 import '../../../../core/widgets/pedilo_logo.dart';
 import '../../../../core/widgets/notification_bell.dart';
@@ -114,8 +115,7 @@ class _ClienteHomeTabState extends State<ClienteHomeTab> {
       await Future.wait(
         comercios.take(12).map((c) async {
           try {
-            final promos =
-                await widget.catalogRepository.getPromociones(c.id);
+            final promos = await widget.catalogRepository.getPromociones(c.id);
             final activas = promos.where((p) => p.activo).toList();
             if (activas.isNotEmpty) {
               promoBadges[c.id] = activas.first.badgeLabel;
@@ -330,9 +330,12 @@ class _ClienteHomeTabState extends State<ClienteHomeTab> {
             onLocationTap: _pickLocation,
             onOpenNotification: widget.onOpenNotification,
           ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 4, 16, 0),
-            child: PromoAdsBanner(height: 140),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: PromoAdsBanner(
+              height: 140,
+              onOpenComercio: widget.onOpenComercio,
+            ),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -374,96 +377,93 @@ class _ClienteHomeTabState extends State<ClienteHomeTab> {
                       const StoresSectionSkeleton(),
                     ] else ...[
                       const SizedBox(height: 16),
-                          if (_pedidosActivos.isNotEmpty) ...[
-                            const SizedBox(height: 16),
-                            _ActiveOrderCard(
-                              pedido: _pedidosActivos.first,
-                              onTap: () => widget.onOpenTracking
-                                  ?.call(_pedidosActivos.first.id),
-                              onSeeAll: widget.onGoPedidos,
-                            ),
-                          ],
-                          if (_ultimoEntregado != null) ...[
-                            const SizedBox(height: 12),
-                            _RepeatOrderCard(
-                              pedido: _ultimoEntregado!,
-                              logoUrl: _logoForUltimoPedido(),
-                              onRepeat: () => _pedirDeNuevo(_ultimoEntregado!),
-                              onOpenComercio:
-                                  _ultimoEntregado!.comercioId == null
-                                      ? null
-                                      : () => widget.onOpenComercio(
-                                            _ultimoEntregado!.comercioId!,
-                                          ),
-                            ),
-                          ],
-                          if (_favoritos.isNotEmpty) ...[
-                            const SizedBox(height: 16),
-                            _SectionHeader(
-                              title: 'Tus favoritos',
-                              action: 'Ver más',
-                              onAction: widget.onGoSearch,
-                            ),
-                            const SizedBox(height: 12),
-                            ComercioMarketplaceList(
-                              comercios: _favoritos,
-                              promoBadges: _promoBadges,
-                              onOpen: widget.onOpenComercio,
-                            ),
-                          ],
-                          const SizedBox(height: 16),
-                          _SectionHeader(
-                            title: 'Locales destacados',
-                            action: showVerMas ? 'Ver más' : '',
-                            onAction: showVerMas ? widget.onGoSearch : null,
-                          ),
-                          const SizedBox(height: 12),
-                          if (destacadosPreview.isEmpty)
-                            EmptyActionState(
-                              icon: Icons.store_outlined,
-                              title: 'Sin comercios por ahora',
-                              subtitle:
-                                  'Probá otra categoría o buscá por nombre.',
-                              actionLabel: 'Ir a buscar',
-                              onAction: widget.onGoSearch,
-                            )
-                          else
-                            ComercioMarketplaceList(
-                              comercios: destacadosPreview,
-                              promoBadges: _promoBadges,
-                              onOpen: widget.onOpenComercio,
-                            ),
-                          if (_conPromo.isNotEmpty) ...[
-                            const SizedBox(height: 16),
-                            _SectionHeader(
-                              title: 'Con promo hoy',
-                              action: _conPromo.length > 3 ? 'Ver más' : '',
-                              onAction: _conPromo.length > 3
-                                  ? widget.onGoSearch
-                                  : null,
-                            ),
-                            const SizedBox(height: 12),
-                            ComercioMarketplaceList(
-                              comercios: _conPromo.take(3).toList(),
-                              promoBadges: _promoBadges,
-                              onOpen: widget.onOpenComercio,
-                            ),
-                          ],
-                          if (_comercios.isNotEmpty) ...[
-                            const SizedBox(height: 16),
-                            const _SectionHeader(
-                              title: 'Todos los locales',
-                              action: '',
-                            ),
-                            const SizedBox(height: 12),
-                            ComercioMarketplaceList(
-                              comercios: _comercios,
-                              promoBadges: _promoBadges,
-                              onOpen: widget.onOpenComercio,
-                            ),
-                          ],
-                        ],
+                      if (_pedidosActivos.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        _ActiveOrderCard(
+                          pedido: _pedidosActivos.first,
+                          onTap: () => widget.onOpenTracking
+                              ?.call(_pedidosActivos.first.id),
+                          onSeeAll: widget.onGoPedidos,
+                        ),
                       ],
+                      if (_ultimoEntregado != null) ...[
+                        const SizedBox(height: 12),
+                        _RepeatOrderCard(
+                          pedido: _ultimoEntregado!,
+                          logoUrl: _logoForUltimoPedido(),
+                          onRepeat: () => _pedirDeNuevo(_ultimoEntregado!),
+                          onOpenComercio: _ultimoEntregado!.comercioId == null
+                              ? null
+                              : () => widget.onOpenComercio(
+                                    _ultimoEntregado!.comercioId!,
+                                  ),
+                        ),
+                      ],
+                      if (_favoritos.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        _SectionHeader(
+                          title: 'Tus favoritos',
+                          action: 'Ver más',
+                          onAction: widget.onGoSearch,
+                        ),
+                        const SizedBox(height: 12),
+                        ComercioMarketplaceList(
+                          comercios: _favoritos,
+                          promoBadges: _promoBadges,
+                          onOpen: widget.onOpenComercio,
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                      _SectionHeader(
+                        title: 'Locales destacados',
+                        action: showVerMas ? 'Ver más' : '',
+                        onAction: showVerMas ? widget.onGoSearch : null,
+                      ),
+                      const SizedBox(height: 12),
+                      if (destacadosPreview.isEmpty)
+                        EmptyActionState(
+                          icon: Icons.store_outlined,
+                          title: 'Sin comercios por ahora',
+                          subtitle: 'Probá otra categoría o buscá por nombre.',
+                          actionLabel: 'Ir a buscar',
+                          onAction: widget.onGoSearch,
+                        )
+                      else
+                        ComercioMarketplaceList(
+                          comercios: destacadosPreview,
+                          promoBadges: _promoBadges,
+                          onOpen: widget.onOpenComercio,
+                        ),
+                      if (_conPromo.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        _SectionHeader(
+                          title: 'Con promo hoy',
+                          action: _conPromo.length > 3 ? 'Ver más' : '',
+                          onAction:
+                              _conPromo.length > 3 ? widget.onGoSearch : null,
+                        ),
+                        const SizedBox(height: 12),
+                        ComercioMarketplaceList(
+                          comercios: _conPromo.take(3).toList(),
+                          promoBadges: _promoBadges,
+                          onOpen: widget.onOpenComercio,
+                        ),
+                      ],
+                      if (_comercios.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        const _SectionHeader(
+                          title: 'Todos los locales',
+                          action: '',
+                        ),
+                        const SizedBox(height: 12),
+                        ComercioMarketplaceList(
+                          comercios: _comercios,
+                          promoBadges: _promoBadges,
+                          onOpen: widget.onOpenComercio,
+                        ),
+                      ],
+                    ],
+                  ],
                 ],
               ),
             ),
@@ -479,9 +479,8 @@ class _ClienteHomeTabState extends State<ClienteHomeTab> {
     if (pedido.comercioLogoUrl.isNotEmpty) return pedido.comercioLogoUrl;
     final id = pedido.comercioId;
     if (id == null) return '';
-    final match = [..._comercios, ..._favoritos]
-        .where((c) => c.id == id)
-        .firstOrNull;
+    final match =
+        [..._comercios, ..._favoritos].where((c) => c.id == id).firstOrNull;
     if (match == null) return '';
     return match.logoUrl.isNotEmpty ? match.logoUrl : match.imageUrl;
   }
@@ -552,8 +551,7 @@ class _ClienteHomeTabState extends State<ClienteHomeTab> {
                       emoji: CatalogMockData.emojiForCategory(
                         cat.nombreCategoria,
                       ),
-                      imageUrl:
-                          cat.imageUrl.isNotEmpty ? cat.imageUrl : null,
+                      imageUrl: cat.imageUrl.isNotEmpty ? cat.imageUrl : null,
                       backgroundColor: CategoryPalette.tileBackground(index),
                       selected: _selectedCategoriaId == cat.id,
                       onTap: () {
@@ -1483,12 +1481,11 @@ class _CouponSlide extends StatelessWidget {
   Widget build(BuildContext context) {
     final headline = cupon.tipo.toLowerCase().contains('porcent')
         ? '${cupon.valor.toStringAsFixed(0)}% OFF'
-        : (cupon.valor > 0
-            ? '\$${cupon.valor.toStringAsFixed(0)} OFF'
-            : cupon.headline);
-    final sub = (cupon.descripcion != null && cupon.descripcion!.trim().isNotEmpty)
-        ? cupon.descripcion!
-        : 'en tu primera compra';
+        : (cupon.valor > 0 ? '${formatUYU(cupon.valor)} OFF' : cupon.headline);
+    final sub =
+        (cupon.descripcion != null && cupon.descripcion!.trim().isNotEmpty)
+            ? cupon.descripcion!
+            : 'en tu primera compra';
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 2),

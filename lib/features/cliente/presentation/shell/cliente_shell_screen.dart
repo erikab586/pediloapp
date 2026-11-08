@@ -28,6 +28,7 @@ class _ClienteShellScreenState extends State<ClienteShellScreen> {
   late final CatalogRepository _catalogRepository;
   late final ClienteRepository _clienteRepository;
   int _tabIndex = 0;
+  bool _queryTabApplied = false;
   int _cartCount = 0;
   int _cartRefreshToken = 0;
   int _pedidosRefreshToken = 0;
@@ -51,11 +52,14 @@ class _ClienteShellScreenState extends State<ClienteShellScreen> {
     super.didChangeDependencies();
 
     // GoRouterState requiere InheritedWidget; no usar en initState().
-    final tabParam = GoRouterState.of(context).uri.queryParameters['tab'];
-    if (tabParam != null) {
-      final tab = int.tryParse(tabParam);
-      if (tab != null && tab >= 0 && tab <= 4 && tab != _tabIndex) {
-        setState(() => _tabIndex = tab);
+    if (!_queryTabApplied) {
+      final tabParam = GoRouterState.of(context).uri.queryParameters['tab'];
+      if (tabParam != null) {
+        final tab = int.tryParse(tabParam);
+        if (tab != null && tab >= 0 && tab <= 4) {
+          _tabIndex = tab;
+          _queryTabApplied = true;
+        }
       }
     }
 
@@ -250,6 +254,7 @@ class _ClienteShellScreenState extends State<ClienteShellScreen> {
                 '/cliente/checkout',
                 extra: comercioId,
               );
+              if (!mounted) return;
               _refreshCartCount();
               setState(() {
                 _cartRefreshToken++;

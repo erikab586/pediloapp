@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/currency.dart';
 
 class PedidoSuccessScreen extends StatelessWidget {
   const PedidoSuccessScreen({
@@ -83,7 +84,7 @@ class PedidoSuccessScreen extends StatelessWidget {
                     if (total != null)
                       _InfoRow(
                         label: 'Total',
-                        value: '\$${total!.toStringAsFixed(0)}',
+                        value: formatUYU(total!),
                         emphasize: true,
                       ),
                   ],

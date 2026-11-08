@@ -20,6 +20,23 @@ class AuthRepository {
 
   ApiClient get apiClient => _api;
 
+  Future<void> requestPasswordReset(String email) async {
+    await _api.post(
+      '/auth/forgot-password',
+      body: {'email': email.trim()},
+    );
+  }
+
+  Future<void> resetPassword({
+    required String token,
+    required String password,
+  }) async {
+    await _api.post(
+      '/auth/reset-password',
+      body: {'token': token, 'password': password},
+    );
+  }
+
   /// Login único. [expectedRole] solo se valida si se pasa (p. ej. admin).
   Future<AuthResponse> login({
     required String email,
@@ -82,7 +99,11 @@ class AuthRepository {
 
     try {
       return await _validateWithMe(stored.refreshToken);
-    } on ApiException {
+    } on ApiException catch (error) {
+      if (error.statusCode == 401 || error.statusCode == 403) {
+        await clearLocalSession();
+        return null;
+      }
       return _restoreCachedSession(stored);
     } catch (_) {
       return _restoreCachedSession(stored);

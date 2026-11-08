@@ -232,6 +232,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     : const Text('Iniciar sesión'),
               ),
               if (!_isAdminGate) ...[
+                const SizedBox(height: 4),
+                TextButton(
+                  onPressed: auth.isLoading
+                      ? null
+                      : () => context.push('/forgot-password'),
+                  child: const Text('¿Olvidaste tu contraseña?'),
+                ),
+              ],
+              if (!_isAdminGate) ...[
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed:

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/currency.dart';
 import '../../../../core/utils/error_messages.dart';
 import '../../../../core/widgets/panel/panel_widgets.dart';
 import '../../data/admin_repository.dart';
@@ -104,7 +105,8 @@ class _AdminCuponesScreenState extends State<AdminCuponesScreen> {
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: AppColors.yellow.withValues(alpha: 0.25),
+                                  color:
+                                      AppColors.yellow.withValues(alpha: 0.25),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: const Icon(
@@ -133,7 +135,7 @@ class _AdminCuponesScreenState extends State<AdminCuponesScreen> {
                                     ),
                                     if (cupon.minCompra > 0)
                                       Text(
-                                        'Mín. compra: \$${cupon.minCompra.toStringAsFixed(0)}',
+                                        'Mín. compra: ${formatUYU(cupon.minCompra)}',
                                         style: GoogleFonts.poppins(
                                           fontSize: 11,
                                           color: AppColors.gray400,

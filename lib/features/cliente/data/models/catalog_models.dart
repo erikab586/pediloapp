@@ -1,5 +1,6 @@
 import '../../../../core/config/api_config.dart';
 import '../../../../core/utils/json_parse.dart';
+import '../../../../core/utils/currency.dart';
 
 class ComercioModel {
   const ComercioModel({
@@ -19,6 +20,7 @@ class ComercioModel {
     this.tiempoEntregaMin,
     this.tiempoEntregaMax,
     this.montoMinimo = 0,
+    this.costoEnvio = 0,
     this.tiposEntrega = const [],
     this.metodosPago = const [],
     this.aprobado = true,
@@ -47,9 +49,7 @@ class ComercioModel {
       horarioAutomatico: parseJsonBool(json['horarioAutomatico']),
       categoriaId: json['categoriaId'] != null
           ? parseJsonInt(json['categoriaId'])
-          : (categoria?['id'] != null
-              ? parseJsonInt(categoria!['id'])
-              : null),
+          : (categoria?['id'] != null ? parseJsonInt(categoria!['id']) : null),
       categoriaNombre: categoria?['nombreCategoria'] as String?,
       horarios: parseJsonMap(json['horarios']),
       tiempoEntregaMin: json['tiempoEntregaMin'] != null
@@ -59,6 +59,7 @@ class ComercioModel {
           ? parseJsonInt(json['tiempoEntregaMax'])
           : null,
       montoMinimo: parseJsonDouble(json['montoMinimo']),
+      costoEnvio: parseJsonDouble(json['costoEnvio']),
       tiposEntrega: parseJsonStringList(json['tiposEntrega']),
       metodosPago: parseJsonStringList(json['metodosPago']),
       aprobado: aprobado,
@@ -82,6 +83,7 @@ class ComercioModel {
   final int? tiempoEntregaMin;
   final int? tiempoEntregaMax;
   final double montoMinimo;
+  final double costoEnvio;
   final List<String> tiposEntrega;
   final List<String> metodosPago;
   final bool aprobado;
@@ -114,10 +116,12 @@ class ComercioModel {
 
   String? get montoMinimoLabel {
     if (montoMinimo <= 0) return null;
-    final whole = montoMinimo == montoMinimo.roundToDouble();
-    final amount =
-        whole ? montoMinimo.toInt().toString() : montoMinimo.toStringAsFixed(2);
-    return 'Gs. $amount';
+    return formatUYU(montoMinimo);
+  }
+
+  String get costoEnvioLabel {
+    if (costoEnvio <= 0) return 'Envío gratis';
+    return 'Envío ${formatUYU(costoEnvio)}';
   }
 
   ComercioModel copyWith({
@@ -136,6 +140,7 @@ class ComercioModel {
     int? tiempoEntregaMin,
     int? tiempoEntregaMax,
     double? montoMinimo,
+    double? costoEnvio,
     List<String>? tiposEntrega,
     List<String>? metodosPago,
     bool? aprobado,
@@ -158,6 +163,7 @@ class ComercioModel {
       tiempoEntregaMin: tiempoEntregaMin ?? this.tiempoEntregaMin,
       tiempoEntregaMax: tiempoEntregaMax ?? this.tiempoEntregaMax,
       montoMinimo: montoMinimo ?? this.montoMinimo,
+      costoEnvio: costoEnvio ?? this.costoEnvio,
       tiposEntrega: tiposEntrega ?? this.tiposEntrega,
       metodosPago: metodosPago ?? this.metodosPago,
       aprobado: aprobado ?? this.aprobado,
@@ -217,8 +223,7 @@ class CategoriaProductoModel {
 
   String get imageUrl => ApiConfig.resolveImageUrl(imagen);
 
-  String get label =>
-      rubro.isNotEmpty ? '$descripcion · $rubro' : descripcion;
+  String get label => rubro.isNotEmpty ? '$descripcion · $rubro' : descripcion;
 }
 
 class DetalleProductoModel {
@@ -301,7 +306,7 @@ class OpcionalModel {
 
   String get imageUrl => ApiConfig.resolveImageUrl(imagen);
 
-  String get precioLabel => '\$${precio.toStringAsFixed(0)}';
+  String get precioLabel => formatUYU(precio);
 }
 
 class ExtraModel {
@@ -337,7 +342,7 @@ class ExtraModel {
 
   String get imageUrl => ApiConfig.resolveImageUrl(imagen);
 
-  String get precioLabel => '\$${precio.toStringAsFixed(0)}';
+  String get precioLabel => formatUYU(precio);
 }
 
 class ProductoModel {
@@ -398,12 +403,13 @@ class ProductoModel {
       descripcion: json['descripcion'] as String?,
       precio: json['precio'] != null ? parseJsonDouble(json['precio']) : null,
       imagen: json['imagen'] as String?,
-      cantidad: json['cantidad'] != null ? parseJsonInt(json['cantidad']) : null,
+      cantidad:
+          json['cantidad'] != null ? parseJsonInt(json['cantidad']) : null,
       activo: parseJsonBool(json['activo'], defaultValue: true),
       comercioId:
           json['comercioId'] != null ? parseJsonInt(json['comercioId']) : null,
-      comercioNombre: json['comercioNombre'] as String? ??
-          comercio?['name'] as String?,
+      comercioNombre:
+          json['comercioNombre'] as String? ?? comercio?['name'] as String?,
       categoriaProductoId: json['categoriaProductoId'] != null
           ? parseJsonInt(json['categoriaProductoId'])
           : null,
@@ -412,8 +418,7 @@ class ProductoModel {
       detalles: detalles,
       opcionales: opcionales,
       extras: extras,
-      promocion:
-          promoRaw != null ? PromocionModel.fromJson(promoRaw) : null,
+      promocion: promoRaw != null ? PromocionModel.fromJson(promoRaw) : null,
     );
   }
 
@@ -431,22 +436,21 @@ class ProductoModel {
   final List<DetalleProductoModel> detalles;
   final List<OpcionalModel> opcionales;
   final List<ExtraModel> extras;
+
   /// Promo vigente asignada a este producto (solo afecta su precio).
   final PromocionModel? promocion;
 
   String get imageUrl => ApiConfig.resolveImageUrl(imagen);
 
-  String get categoriaLabel =>
-      categoriaProducto?.label ?? 'Sin categoría';
+  String get categoriaLabel => categoriaProducto?.label ?? 'Sin categoría';
 
   double get precioValue => precio ?? 0;
 
   bool get tienePromocion => promocion != null && promocion!.isVigente;
 
-  String? get promoBadgeLabel =>
-      tienePromocion ? promocion!.badgeLabel : null;
+  String? get promoBadgeLabel => tienePromocion ? promocion!.badgeLabel : null;
 
-  String get precioLabel => '\$${precioValue.toStringAsFixed(0)}';
+  String get precioLabel => formatUYU(precioValue);
 
   List<DetalleProductoModel> get detallesActivos =>
       detalles.where((d) => d.activo).toList();
@@ -454,8 +458,7 @@ class ProductoModel {
   List<OpcionalModel> get opcionalesActivos =>
       opcionales.where((o) => o.activo).toList();
 
-  List<ExtraModel> get extrasActivos =>
-      extras.where((e) => e.activo).toList();
+  List<ExtraModel> get extrasActivos => extras.where((e) => e.activo).toList();
 
   bool get requiereOpcional => opcionalesActivos.isNotEmpty;
 
@@ -518,8 +521,9 @@ class CuponModel {
   final double minCompra;
   final bool activo;
 
-  String get headline =>
-      codigo.isNotEmpty ? codigo : (descripcion?.trim().isNotEmpty == true
+  String get headline => codigo.isNotEmpty
+      ? codigo
+      : (descripcion?.trim().isNotEmpty == true
           ? descripcion!.trim()
           : 'Cupón');
 }
@@ -541,15 +545,14 @@ class ValoracionModel {
       id: parseJsonInt(json['id']),
       calificacion: parseJsonInt(json['calificacion']),
       comentario: json['comentario'] as String?,
-      usuarioNombre: usuario?['name'] as String? ??
-          json['usuarioNombre'] as String?,
-      comercioId: json['comercioId'] != null
-          ? parseJsonInt(json['comercioId'])
-          : null,
-      productoId: json['productoId'] != null
-          ? parseJsonInt(json['productoId'])
-          : null,
-      createdAt: json['createdAt']?.toString() ?? json['created_at']?.toString(),
+      usuarioNombre:
+          usuario?['name'] as String? ?? json['usuarioNombre'] as String?,
+      comercioId:
+          json['comercioId'] != null ? parseJsonInt(json['comercioId']) : null,
+      productoId:
+          json['productoId'] != null ? parseJsonInt(json['productoId']) : null,
+      createdAt:
+          json['createdAt']?.toString() ?? json['created_at']?.toString(),
     );
   }
 
@@ -596,7 +599,8 @@ class PromocionModel {
       descripcion: json['descripcion'] as String?,
       ejemplo: json['ejemplo'] as String?,
       activo: parseJsonBool(json['activo'], defaultValue: true),
-      fechaInicio: json['fechaInicio']?.toString() ?? json['fecha_inicio']?.toString(),
+      fechaInicio:
+          json['fechaInicio']?.toString() ?? json['fecha_inicio']?.toString(),
       fechaFin: json['fechaFin']?.toString() ?? json['fecha_fin']?.toString(),
     );
   }
@@ -637,10 +641,10 @@ class PromocionModel {
       return '-${valor.toStringAsFixed(0)}%';
     }
     if (t.contains('fijo') || t == 'descuento_fijo') {
-      return '-\$${valor.toStringAsFixed(0)}';
+      return '-${formatUYU(valor)}';
     }
     if (t.contains('precio_promocional')) {
-      return '\$${valor.toStringAsFixed(0)}';
+      return formatUYU(valor);
     }
     if (t == '2x1' || t.contains('dos')) return '2x1';
     if (t == '3x2') return '3x2';

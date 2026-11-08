@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/currency.dart';
 import '../../../../core/utils/promo_pricing.dart';
 import '../../../../core/utils/rubro_copy.dart';
 import '../../data/models/catalog_models.dart';
@@ -78,7 +79,8 @@ class _ProductBottomSheetState extends State<_ProductBottomSheet> {
   PromoPriceResult get _promoPrice => calculatePromoPrice(
         unitPrice: _baseUnitPrice,
         cantidad: _qty,
-        promo: widget.producto.tienePromocion ? widget.producto.promocion : null,
+        promo:
+            widget.producto.tienePromocion ? widget.producto.promocion : null,
       );
 
   double get _extrasTotal {
@@ -189,7 +191,7 @@ class _ProductBottomSheetState extends State<_ProductBottomSheet> {
                       Row(
                         children: [
                           Text(
-                            '\$${_promoPrice.precioUnitario.toStringAsFixed(0)}',
+                            formatUYU(_promoPrice.precioUnitario),
                             style: GoogleFonts.poppins(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
@@ -198,7 +200,7 @@ class _ProductBottomSheetState extends State<_ProductBottomSheet> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            '\$${_promoPrice.precioOriginal.toStringAsFixed(0)}',
+                            formatUYU(_promoPrice.precioOriginal),
                             style: GoogleFonts.poppins(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
@@ -210,7 +212,7 @@ class _ProductBottomSheetState extends State<_ProductBottomSheet> {
                       )
                     else
                       Text(
-                        '\$${_baseUnitPrice.toStringAsFixed(0)}',
+                        formatUYU(_baseUnitPrice),
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -287,9 +289,7 @@ class _ProductBottomSheetState extends State<_ProductBottomSheet> {
                                             ),
                                           ),
                                           if (o.descripcion != null &&
-                                              o.descripcion!
-                                                  .trim()
-                                                  .isNotEmpty)
+                                              o.descripcion!.trim().isNotEmpty)
                                             Text(
                                               o.descripcion!,
                                               style: GoogleFonts.poppins(
@@ -422,7 +422,7 @@ class _ProductBottomSheetState extends State<_ProductBottomSheet> {
               child: Text(
                 addToCartCtaForRubro(
                   widget.categoriaNombre,
-                  priceLabel: '\$${_lineTotal.toStringAsFixed(0)}',
+                  priceLabel: formatUYU(_lineTotal),
                 ),
                 style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
               ),
@@ -548,7 +548,8 @@ class _ProductBottomSheetState extends State<_ProductBottomSheet> {
     return Container(
       color: const Color(0xFFF1F5F9),
       alignment: Alignment.center,
-      child: const Icon(Icons.fastfood_outlined, size: 48, color: AppColors.gray400),
+      child: const Icon(Icons.fastfood_outlined,
+          size: 48, color: AppColors.gray400),
     );
   }
 }

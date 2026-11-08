@@ -35,6 +35,7 @@ class ComercioFormRepository {
     int? tiempoEntregaMin,
     int? tiempoEntregaMax,
     double? montoMinimo,
+    double? costoEnvio,
     Uint8List? logoBytes,
     Uint8List? portadaBytes,
   }) async {
@@ -56,6 +57,7 @@ class ComercioFormRepository {
         tiempoEntregaMin: tiempoEntregaMin,
         tiempoEntregaMax: tiempoEntregaMax,
         montoMinimo: montoMinimo,
+        costoEnvio: costoEnvio,
       ),
       files: _files(logoBytes: logoBytes, portadaBytes: portadaBytes),
       authenticated: true,
@@ -78,6 +80,7 @@ class ComercioFormRepository {
     int? tiempoEntregaMin,
     int? tiempoEntregaMax,
     double? montoMinimo,
+    double? costoEnvio,
     Uint8List? logoBytes,
     Uint8List? portadaBytes,
   }) async {
@@ -95,6 +98,7 @@ class ComercioFormRepository {
       tiempoEntregaMin: tiempoEntregaMin,
       tiempoEntregaMax: tiempoEntregaMax,
       montoMinimo: montoMinimo,
+      costoEnvio: costoEnvio,
     );
 
     final files = _files(logoBytes: logoBytes, portadaBytes: portadaBytes);
@@ -115,6 +119,7 @@ class ComercioFormRepository {
             if (tiempoEntregaMin != null) 'tiempoEntregaMin': tiempoEntregaMin,
             if (tiempoEntregaMax != null) 'tiempoEntregaMax': tiempoEntregaMax,
             if (montoMinimo != null) 'montoMinimo': montoMinimo,
+            if (costoEnvio != null) 'costoEnvio': costoEnvio,
           })
         : await _api.putMultipart(
             '/comercios/$id',
@@ -143,6 +148,7 @@ class ComercioFormRepository {
     int? tiempoEntregaMin,
     int? tiempoEntregaMax,
     double? montoMinimo,
+    double? costoEnvio,
   }) {
     return {
       if (categoriaId != null) 'categoriaId': '$categoriaId',
@@ -166,6 +172,7 @@ class ComercioFormRepository {
       if (tiempoEntregaMin != null) 'tiempoEntregaMin': '$tiempoEntregaMin',
       if (tiempoEntregaMax != null) 'tiempoEntregaMax': '$tiempoEntregaMax',
       if (montoMinimo != null) 'montoMinimo': '$montoMinimo',
+      if (costoEnvio != null) 'costoEnvio': '$costoEnvio',
     };
   }
 

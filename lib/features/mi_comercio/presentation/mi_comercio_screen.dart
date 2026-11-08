@@ -9,6 +9,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/audio/notification_sound.dart';
 import '../../../core/network/socket_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/currency.dart';
 import '../../../core/utils/open_backoffice.dart';
 import '../../../core/widgets/panel/panel_widgets.dart';
 import '../../auth/presentation/auth_provider.dart';
@@ -434,7 +435,7 @@ class _PedidoTile extends StatelessWidget {
           style: GoogleFonts.poppins(fontSize: 13, color: AppColors.gray600),
         ),
         trailing: Text(
-          '\$${pedido.total.toStringAsFixed(0)}',
+          formatUYU(pedido.total),
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.w700,
             color: AppColors.navy,
